@@ -1,0 +1,16 @@
+[
+  {
+    "device_id": "ESP32-LAB-A01",
+    "metric": "temperature",
+    "value": 31.5,
+    "unit": "celsius",
+    "timestamp": "2026-05-13T08:30:00+07:00"
+  },
+  {
+    "device_id": "ESP32-LAB-A02",
+    "metric": "humidity",
+    "value": 72,
+    "unit": "percent",
+    "timestamp": "2026-05-13T08:31:00+07:00"
+  }
+]
