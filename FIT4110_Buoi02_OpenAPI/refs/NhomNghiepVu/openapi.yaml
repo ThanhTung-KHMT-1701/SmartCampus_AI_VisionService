@@ -1,0 +1,672 @@
+openapi: 3.1.0
+info:
+  title: Smart Campus — AI Vision API (Core Business ↔ AI Vision)
+  version: 1.0.0
+  description: |
+    Hợp đồng REST sync giữa Core Business (Consumer) và AI Vision (Provider).
+    Core Business gửi face-match/embedding hoặc imageRef để lấy kết quả phân tích ảnh,
+    detection, face-match có confidence, modelVersion, timestamp và traceId phục vụ audit.
+  contact:
+    name: FIT4110 — Pair 02
+    email: pair02@campus.local
+servers:
+  - url: http://localhost:4010
+    description: Prism mock server
+  - url: https://ai-vision.campus.local
+    description: AI Vision service
+tags:
+  - name: health
+    description: Kiểm tra trạng thái service
+  - name: vision
+    description: Kết quả phân tích ảnh / face-match
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: getVisionHealth
+      summary: Kiểm tra trạng thái AI Vision
+      description: Endpoint kiểm tra service AI Vision còn hoạt động.
+      tags: [health]
+      security: []
+      responses:
+        '200':
+          description: Service đang hoạt động
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              examples:
+                ok:
+                  value:
+                    status: ok
+                    service: ai-vision
+                    time: '2026-05-10T08:00:00Z'
+
+  /vision/face-match:
+    post:
+      operationId: createFaceMatch
+      summary: Thực hiện face-match
+      description: |
+        Core Business gửi faceEmbedding hoặc imageRef để AI Vision so khớp danh tính.
+        Khi model không chắc chắn, API trả 200 với status LOW_CONFIDENCE thay vì 422.
+      tags: [vision]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FaceMatchRequest'
+            examples:
+              byEmbedding:
+                value:
+                  requestId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                  traceId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                  sourceType: FACE_EMBEDDING
+                  faceEmbedding: [0.1, 0.199, 0.296, 0.389, 0.479, 0.565, 0.644, 0.717, 0.783, 0.841, 0.891, 0.932, 0.964, 0.985, 0.997, 1, 0.992, 0.974, 0.946, 0.909, 0.863, 0.808, 0.746, 0.675, 0.598, 0.516, 0.427, 0.335, 0.239, 0.141, 0.042, -0.058, -0.158, -0.256, -0.351, -0.443, -0.53, -0.612, -0.688, -0.757, -0.818, -0.872, -0.916, -0.952, -0.978, -0.994, -1, -0.996, -0.982, -0.959, -0.926, -0.883, -0.832, -0.773, -0.706, -0.631, -0.551, -0.465, -0.374, -0.279, -0.182, -0.083, 0.017, 0.117, 0.215, 0.312, 0.405, 0.494, 0.578, 0.657, 0.729, 0.794, 0.85, 0.899, 0.938, 0.968, 0.988, 0.999, 0.999, 0.989, 0.97, 0.941, 0.902, 0.855, 0.798, 0.734, 0.663, 0.585, 0.501, 0.412, 0.319, 0.223, 0.124, 0.025, -0.075, -0.174, -0.272, -0.366, -0.458, -0.544, -0.625, -0.7, -0.768, -0.828, -0.88, -0.923, -0.957, -0.981, -0.995, -1, -0.995, -0.979, -0.954, -0.919, -0.875, -0.823, -0.762, -0.694, -0.618, -0.537, -0.45, -0.358, -0.263, -0.166, -0.066, 0.034, 0.133, 0.232]
+                  imageRef: null
+                  minConfidence: 0.7
+                  requestedAt: '2026-05-10T08:00:00Z'
+              byImageRef:
+                value:
+                  requestId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babd
+                  traceId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babd
+                  sourceType: IMAGE_REF
+                  faceEmbedding: null
+                  imageRef: https://camera.campus.local/frames/frame-001.jpg
+                  minConfidence: 0.7
+                  requestedAt: '2026-05-10T08:01:00Z'
+      responses:
+        '200':
+          description: Kết quả face-match (MATCHED, LOW_CONFIDENCE hoặc NO_MATCH)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceMatchResult'
+              examples:
+                matched:
+                  value:
+                    matchId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babe
+                    status: MATCHED
+                    personId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babf
+                    confidence: 0.94
+                    modelVersion: 2.3.1
+                    timestamp: '2026-05-10T08:01:05Z'
+                    traceId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /vision/detections/{detectionId}:
+    get:
+      operationId: getDetectionById
+      summary: Lấy chi tiết kết quả detection
+      description: Lấy thông tin chi tiết của một detection theo UUID.
+      tags: [vision]
+      parameters:
+        - $ref: '#/components/parameters/DetectionId'
+      responses:
+        '200':
+          description: Chi tiết detection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Detection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /vision/detections:
+    get:
+      operationId: listDetections
+      summary: Lấy danh sách detection
+      description: Lấy danh sách detection với cursor-based pagination, hỗ trợ lọc theo trạng thái.
+      tags: [vision]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          description: Lọc detection theo trạng thái.
+          schema:
+            type: string
+            enum: [MATCHED, LOW_CONFIDENCE, NO_MATCH]
+      responses:
+        '200':
+          description: Danh sách detection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectionPage'
+              examples:
+                firstPage:
+                  value:
+                    items:
+                      - detectionId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babe
+                        status: MATCHED
+                        confidence: 0.94
+                        modelVersion: 2.3.1
+                        timestamp: '2026-05-10T08:01:05Z'
+                        traceId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                    nextCursor: null
+                    hasMore: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /vision/results/recent:
+    get:
+      operationId: getRecentVisionResults
+      summary: Lấy kết quả phân tích gần đây
+      description: Lấy danh sách kết quả detection/face-match gần đây với cursor-based pagination.
+      tags: [vision]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Danh sách kết quả gần đây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionResultPage'
+              examples:
+                firstPage:
+                  value:
+                    items:
+                      - detectionId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babe
+                        status: MATCHED
+                        confidence: 0.94
+                        modelVersion: 2.3.1
+                        timestamp: '2026-05-10T08:01:05Z'
+                        traceId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                    nextCursor: null
+                    hasMore: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+webhooks:
+  detectionCompleted:
+    post:
+      operationId: onDetectionCompleted
+      summary: Webhook khi có detection mới hoàn tất
+      description: AI Vision phát webhook khi một detection/face-match hoàn tất.
+      tags: [vision]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FaceMatchResult'
+      responses:
+        '200':
+          description: Core Business đã nhận webhook
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    DetectionId:
+      name: detectionId
+      in: path
+      required: true
+      description: UUID của kết quả detection.
+      schema:
+        type: string
+        format: uuid
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Cursor dùng để lấy trang tiếp theo.
+      schema:
+        type: [string, 'null']
+        minLength: 1
+        maxLength: 200
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Số item tối đa mỗi trang.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      required: [status, service, time]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Trạng thái service.
+          example: ok
+        service:
+          type: string
+          minLength: 2
+          maxLength: 80
+          description: Tên service.
+          example: ai-vision
+        time:
+          type: string
+          format: date-time
+          description: Thời điểm kiểm tra.
+          example: '2026-05-10T08:00:00Z'
+
+    FaceMatchRequest:
+      oneOf:
+        - $ref: '#/components/schemas/EmbeddingMatchRequest'
+        - $ref: '#/components/schemas/ImageRefMatchRequest'
+      discriminator:
+        propertyName: sourceType
+        mapping:
+          FACE_EMBEDDING: '#/components/schemas/EmbeddingMatchRequest'
+          IMAGE_REF: '#/components/schemas/ImageRefMatchRequest'
+
+    EmbeddingMatchRequest:
+      type: object
+      additionalProperties: false
+      required: [requestId, traceId, sourceType, faceEmbedding, minConfidence, requestedAt]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          description: Idempotency key do Core Business sinh ra để tránh xử lý lặp khi retry.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+        traceId:
+          type: string
+          format: uuid
+          description: Correlation id xuyên suốt để audit.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+        sourceType:
+          type: string
+          const: FACE_EMBEDDING
+          description: Loại nguồn đầu vào.
+        faceEmbedding:
+          type: array
+          minItems: 128
+          maxItems: 512
+          items:
+            type: number
+            format: float
+          description: Vector khuôn mặt do Core gửi.
+          example: [0.1, 0.199, 0.296, 0.389, 0.479, 0.565, 0.644, 0.717, 0.783, 0.841, 0.891, 0.932, 0.964, 0.985, 0.997, 1, 0.992, 0.974, 0.946, 0.909, 0.863, 0.808, 0.746, 0.675, 0.598, 0.516, 0.427, 0.335, 0.239, 0.141, 0.042, -0.058, -0.158, -0.256, -0.351, -0.443, -0.53, -0.612, -0.688, -0.757, -0.818, -0.872, -0.916, -0.952, -0.978, -0.994, -1, -0.996, -0.982, -0.959, -0.926, -0.883, -0.832, -0.773, -0.706, -0.631, -0.551, -0.465, -0.374, -0.279, -0.182, -0.083, 0.017, 0.117, 0.215, 0.312, 0.405, 0.494, 0.578, 0.657, 0.729, 0.794, 0.85, 0.899, 0.938, 0.968, 0.988, 0.999, 0.999, 0.989, 0.97, 0.941, 0.902, 0.855, 0.798, 0.734, 0.663, 0.585, 0.501, 0.412, 0.319, 0.223, 0.124, 0.025, -0.075, -0.174, -0.272, -0.366, -0.458, -0.544, -0.625, -0.7, -0.768, -0.828, -0.88, -0.923, -0.957, -0.981, -0.995, -1, -0.995, -0.979, -0.954, -0.919, -0.875, -0.823, -0.762, -0.694, -0.618, -0.537, -0.45, -0.358, -0.263, -0.166, -0.066, 0.034, 0.133, 0.232]
+        imageRef:
+          type: [string, 'null']
+          format: uri
+          description: Bắt buộc null khi dùng embedding.
+          example: null
+        minConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.7
+          description: Ngưỡng confidence tối thiểu để coi là match.
+          example: 0.7
+        requestedAt:
+          type: string
+          format: date-time
+          description: Thời điểm Core gửi yêu cầu.
+          example: '2026-05-10T08:00:00Z'
+
+    ImageRefMatchRequest:
+      type: object
+      additionalProperties: false
+      required: [requestId, traceId, sourceType, imageRef, minConfidence, requestedAt]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          description: Idempotency key do Core Business sinh ra.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babd
+        traceId:
+          type: string
+          format: uuid
+          description: Correlation id xuyên suốt để audit.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babd
+        sourceType:
+          type: string
+          const: IMAGE_REF
+          description: Loại nguồn đầu vào.
+        faceEmbedding:
+          type: [array, 'null']
+          minItems: 128
+          maxItems: 512
+          items:
+            type: number
+            format: float
+          description: Bắt buộc null khi dùng imageRef.
+          example: null
+        imageRef:
+          type: string
+          format: uri
+          description: URI ảnh cần phân tích.
+          example: https://camera.campus.local/frames/frame-001.jpg
+        minConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.7
+          description: Ngưỡng confidence tối thiểu.
+          example: 0.7
+        requestedAt:
+          type: string
+          format: date-time
+          description: Thời điểm Core gửi yêu cầu.
+          example: '2026-05-10T08:01:00Z'
+
+    FaceMatchResult:
+      oneOf:
+        - $ref: '#/components/schemas/MatchFoundResult'
+        - $ref: '#/components/schemas/NoMatchResult'
+      discriminator:
+        propertyName: status
+        mapping:
+          MATCHED: '#/components/schemas/MatchFoundResult'
+          LOW_CONFIDENCE: '#/components/schemas/NoMatchResult'
+          NO_MATCH: '#/components/schemas/NoMatchResult'
+
+    MatchFoundResult:
+      type: object
+      additionalProperties: false
+      required: [matchId, status, personId, confidence, modelVersion, timestamp, traceId]
+      properties:
+        matchId:
+          type: string
+          format: uuid
+          description: UUID của kết quả match.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babe
+        status:
+          type: string
+          const: MATCHED
+          description: Trạng thái kết quả.
+        personId:
+          type: string
+          format: uuid
+          description: Danh tính đã khớp.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babf
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Độ tin cậy của match.
+          example: 0.94
+        modelVersion:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: Phiên bản model dùng để phân tích.
+          example: 2.3.1
+        timestamp:
+          type: string
+          format: date-time
+          description: Thời điểm AI Vision trả kết quả.
+          example: '2026-05-10T08:01:05Z'
+        traceId:
+          type: string
+          format: uuid
+          description: Correlation id gốc từ yêu cầu.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+
+    NoMatchResult:
+      type: object
+      additionalProperties: false
+      required: [matchId, status, personId, confidence, modelVersion, timestamp, traceId]
+      properties:
+        matchId:
+          type: string
+          format: uuid
+          description: UUID của kết quả match.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babe
+        status:
+          type: string
+          enum: [LOW_CONFIDENCE, NO_MATCH]
+          description: |
+            LOW_CONFIDENCE khi confidence dưới ngưỡng nhưng có ứng viên,
+            NO_MATCH khi không có ứng viên nào.
+        personId:
+          type: [string, 'null']
+          format: uuid
+          description: |
+            Danh tính gần nhất nếu LOW_CONFIDENCE, null nếu NO_MATCH.
+            Core Business phải coi là chưa xác định danh tính.
+          example: null
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Độ tin cậy thấp nhất của kết quả.
+          example: 0.42
+        modelVersion:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: Phiên bản model dùng để phân tích.
+          example: 2.3.1
+        timestamp:
+          type: string
+          format: date-time
+          description: Thời điểm AI Vision trả kết quả.
+          example: '2026-05-10T08:01:05Z'
+        traceId:
+          type: string
+          format: uuid
+          description: Correlation id gốc từ yêu cầu.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+
+    Detection:
+      type: object
+      additionalProperties: false
+      required: [detectionId, status, confidence, modelVersion, timestamp, traceId]
+      properties:
+        detectionId:
+          type: string
+          format: uuid
+          description: UUID của detection.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babe
+        status:
+          type: string
+          enum: [MATCHED, LOW_CONFIDENCE, NO_MATCH]
+          description: Trạng thái của kết quả phân tích.
+          example: MATCHED
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Độ tin cậy của detection.
+          example: 0.94
+        modelVersion:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: Phiên bản model.
+          example: 2.3.1
+        timestamp:
+          type: string
+          format: date-time
+          description: Thời điểm phân tích.
+          example: '2026-05-10T08:01:05Z'
+        traceId:
+          type: string
+          format: uuid
+          description: Correlation id để audit.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+
+    DetectionPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Detection'
+        nextCursor:
+          type: [string, 'null']
+          description: Cursor trang tiếp theo, null nếu hết dữ liệu.
+          example: null
+        hasMore:
+          type: boolean
+          description: Còn dữ liệu ở trang sau hay không.
+          example: false
+
+    VisionResultPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Detection'
+        nextCursor:
+          type: [string, 'null']
+          description: Cursor trang tiếp theo, null nếu hết dữ liệu.
+          example: null
+        hasMore:
+          type: boolean
+          description: Còn dữ liệu ở trang sau hay không.
+          example: false
+
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI định danh loại lỗi.
+          example: https://ai-vision.campus.local/errors/validation
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+          description: Tiêu đề lỗi ngắn gọn.
+          example: Dữ liệu không hợp lệ
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: HTTP status code.
+          example: 400
+        detail:
+          type: [string, 'null']
+          maxLength: 500
+          description: Mô tả chi tiết lỗi.
+          example: faceEmbedding phải có từ 128 đến 512 chiều
+        instance:
+          type: [string, 'null']
+          format: uri
+          description: URI của request gây lỗi.
+          example: https://ai-vision.campus.local/vision/face-match
+        errors:
+          type: array
+          minItems: 0
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, code, message]
+            properties:
+              field:
+                type: string
+                minLength: 1
+                maxLength: 80
+                example: faceEmbedding
+              code:
+                type: string
+                minLength: 2
+                maxLength: 80
+                example: MIN_ITEMS
+              message:
+                type: string
+                minLength: 3
+                maxLength: 200
+                example: faceEmbedding phải có từ 128 đến 512 chiều
+
+  responses:
+    BadRequest:
+      description: Dữ liệu sai định dạng
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Unauthorized:
+      description: Thiếu hoặc sai thông tin xác thực
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Forbidden:
+      description: Không có quyền thực hiện thao tác
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    NotFound:
+      description: Resource không tồn tại
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Conflict:
+      description: Xung đột nghiệp vụ hoặc trùng idempotency key (requestId)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    UnprocessableEntity:
+      description: Payload đúng định dạng nhưng không hợp lệ về nghiệp vụ
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    InternalServerError:
+      description: Lỗi không mong muốn phía server
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

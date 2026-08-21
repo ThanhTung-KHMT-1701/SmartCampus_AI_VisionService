@@ -1,0 +1,92 @@
+---
+kind: postman-cli-collection-run-executions
+schemaVersion: 1
+runId: cf80755e-bf97-4dec-ba51-5538831ccec4
+summaryFile: cli-request-collection-2026-08-13-09-25-12.collection-run-summary.yaml
+collection:
+  id: 92009466-49d5-40bf-b794-307cbcabee4b
+  name: CLI Request Collection
+generatedAt: '2026-08-13T02:25:12.855Z'
+---
+iteration: 0
+cursorRef: aacb1815-e195-4080-9305-07688d4f1a7a
+item:
+  id: f84e311a-4409-4a92-a966-34420bd1d0e1
+  name: GET http://127.0.0.1:8000/vision/results/recent?limit=10&camera_id=cam-gate-01
+  folders:
+    - GET http://127.0.0.1:8000/vision/results/recent?limit=10&camera_id=cam-gate-01
+  fullName: GET http://127.0.0.1:8000/vision/results/recent?limit=10&camera_id=cam-gate-01
+  parent:
+    id: 92009466-49d5-40bf-b794-307cbcabee4b
+    name: CLI Request Collection
+    folders: []
+request:
+  method: GET
+  url:
+    protocol: http
+    port: '8000'
+    path:
+      - vision
+      - results
+      - recent
+    host:
+      - '127'
+      - '0'
+      - '0'
+      - '1'
+    query:
+      - key: limit
+        value: '10'
+      - key: camera_id
+        value: cam-gate-01
+    variable: []
+  headers:
+    - disabled: false
+      description:
+        content: 'Header: Authorization'
+        type: text/plain
+      key: Authorization
+      value: Bearer local-dev-token-vision
+    - key: User-Agent
+      value: PostmanRuntime/7.54.0
+      system: true
+    - key: Accept
+      value: '*/*'
+      system: true
+    - key: Cache-Control
+      value: no-cache
+      system: true
+    - key: Postman-Token
+      value: 5b7f7747-fb14-4b57-8c07-f61b93572c2d
+      system: true
+    - key: Host
+      value: 127.0.0.1:8000
+      system: true
+    - key: Accept-Encoding
+      value: gzip, deflate, br
+      system: true
+    - key: Connection
+      value: keep-alive
+      system: true
+  body:
+    mode: raw
+    raw: ''
+    disabled: true
+response:
+  id: 1fc25b1e-05e3-4a84-a6cf-b69013785b56
+  code: 200
+  status: OK
+  responseTime: 25
+  responseSize: 46
+  headers:
+    - key: date
+      value: Thu, 13 Aug 2026 02:25:12 GMT
+    - key: server
+      value: uvicorn
+    - key: content-length
+      value: '46'
+    - key: content-type
+      value: application/json
+  body: '{"items":[],"nextCursor":null,"hasMore":false}'
+tests: []
+errors: []

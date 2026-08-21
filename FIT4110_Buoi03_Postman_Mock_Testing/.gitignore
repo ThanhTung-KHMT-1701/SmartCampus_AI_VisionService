@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+.env
+prism.log
+vision.log
+__pycache__/
+*.pyc
+*.pyo
+reports/*.xml
+reports/*.html
+reports/*.json
+!reports/.gitkeep
+!reports/README.md
+!reports/contract-lint-*.txt

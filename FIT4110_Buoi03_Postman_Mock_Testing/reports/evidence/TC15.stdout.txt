@@ -1,0 +1,16 @@
+﻿
+ΓåÆ POST http://127.0.0.1:4014/frames 
+  422 Unprocessable Entity Γÿà 24ms time Γÿà 166BΓåæ 550BΓåô size Γÿà 10Γåæ 4Γåô headers Γÿà 0 cookies
+  Γöî Γåô application/json Γÿà json Γÿà json Γÿà utf8 Γÿà 550B
+  Γöé {"detail":[{"type":"model_attributes_type","loc":["bod
+  Γöé y"],"msg":"Input should be a valid dictionary or objec
+  Γöé t to extract fields from","input":"-------------------
+  Γöé ---------245037128907395461247791\r\nContent-Dispositi
+  Γöé on: form-data; name=\"file\"; filename=\"TC15.body.jso
+  Γöé n\"\r\nContent-Type: application/json\r\n\r\n∩╗┐{\"camer
+  Γöé a_id\":\"cam-gate-01\",\"frame_url\":\"http://storage.
+  Γöé campus.local/frames/frame-001.jpg\",\"motion_detected\
+  Γöé ":true,\"timestamp\":\"2026-08-13T07:30:00Z\"}\r\n\r\n
+  Γöé ----------------------------245037128907395461247791--
+  Γöé \r\n"}]}
+  Γöö

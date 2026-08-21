@@ -1,0 +1,8 @@
+﻿
+ΓåÆ GET http://127.0.0.1:8000/health 
+  200 OK Γÿà 23ms time Γÿà 0BΓåæ 134BΓåô size Γÿà 7Γåæ 4Γåô headers Γÿà 0 cookies
+  Γöî Γåô application/json Γÿà json Γÿà json Γÿà utf8 Γÿà 134B
+  Γöé {"status":"ok","service":"ai-vision","version":"1.0.0"
+  Γöé ,"modelLoaded":true,"modelVersion":"yolov8n-v1.0","tim
+  Γöé e":"2026-08-13T02:33:39Z"}
+  Γöö

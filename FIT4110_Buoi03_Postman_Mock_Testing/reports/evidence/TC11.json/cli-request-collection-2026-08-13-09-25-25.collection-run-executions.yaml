@@ -1,0 +1,99 @@
+---
+kind: postman-cli-collection-run-executions
+schemaVersion: 1
+runId: 9ed5922b-e3c3-4ce1-9c6a-84bbea8d4471
+summaryFile: cli-request-collection-2026-08-13-09-25-25.collection-run-summary.yaml
+collection:
+  id: 61f89e65-204f-4438-9949-fec5b9251aa1
+  name: CLI Request Collection
+generatedAt: '2026-08-13T02:25:25.912Z'
+---
+iteration: 0
+cursorRef: 74871d38-e940-4f34-afed-952c8c69184d
+item:
+  id: ec162db5-9e14-45fb-8508-1b878699d2d8
+  name: POST http://127.0.0.1:8000/vision/detect
+  folders:
+    - POST http://127.0.0.1:8000/vision/detect
+  fullName: POST http://127.0.0.1:8000/vision/detect
+  parent:
+    id: 61f89e65-204f-4438-9949-fec5b9251aa1
+    name: CLI Request Collection
+    folders: []
+request:
+  method: POST
+  url:
+    protocol: http
+    port: '8000'
+    path:
+      - vision
+      - detect
+    host:
+      - '127'
+      - '0'
+      - '0'
+      - '1'
+    query: []
+    variable: []
+  headers:
+    - disabled: false
+      description:
+        content: 'Header: Authorization'
+        type: text/plain
+      key: Authorization
+      value: Bearer invalid-token-xyz
+    - disabled: false
+      description:
+        content: 'Header: Content-Type'
+        type: text/plain
+      key: Content-Type
+      value: application/json
+    - key: User-Agent
+      value: PostmanRuntime/7.54.0
+      system: true
+    - key: Accept
+      value: '*/*'
+      system: true
+    - key: Cache-Control
+      value: no-cache
+      system: true
+    - key: Postman-Token
+      value: c6607383-a646-436b-953e-08d7babf283a
+      system: true
+    - key: Host
+      value: 127.0.0.1:8000
+      system: true
+    - key: Accept-Encoding
+      value: gzip, deflate, br
+      system: true
+    - key: Connection
+      value: keep-alive
+      system: true
+    - key: Content-Length
+      value: '348'
+      system: true
+  body:
+    mode: formdata
+    formdata:
+      - key: file
+        type: file
+        src: E:\dnu.khmt.1701.1771040029@gmail.com\GithubClassroom\DichVuKetNoiVaCongNgheNenTang_1771040029\FIT4110_Buoi03_Postman_Mock_Testing\reports\evidence\TC10.body.json
+    disabled: false
+response:
+  id: 8b7c44ff-c409-456d-a70e-5c17f0720089
+  code: 422
+  status: Unprocessable Entity
+  responseTime: 27
+  responseSize: 287
+  headers:
+    - key: date
+      value: Thu, 13 Aug 2026 02:25:25 GMT
+    - key: server
+      value: uvicorn
+    - key: content-length
+      value: '287'
+    - key: content-type
+      value: application/problem+json
+  body: '{"type":"https://ai-vision.campus.local/errors/validation","title":"Dữ liệu không hợp lệ","status":422,"detail":"Payload không khớp schema","errors":[{"field":"","code":"model_attributes_type","message":"Input should be a valid dictionary or object to extract fields from"}]}'
+tests: []
+errors: []

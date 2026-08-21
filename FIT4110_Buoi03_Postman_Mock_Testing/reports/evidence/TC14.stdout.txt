@@ -1,0 +1,8 @@
+﻿
+ΓåÆ GET http://127.0.0.1:8000/vision/detections/not-a-uuid 
+  422 Unprocessable Entity Γÿà 23ms time Γÿà 0BΓåæ 144BΓåô size Γÿà 8Γåæ 4Γåô headers Γÿà 0 cookies
+  Γöî Γåô application/problem+json Γÿà problem+json Γÿà text Γÿà utf8 Γÿà 144B
+  Γöé {"type":"https://ai-vision.campus.local/errors/422","t
+  Γöé itle":"detection_id phß║úi l├á UUID","status":422,"detail
+  Γöé ":"detection_id phß║úi l├á UUID"}
+  Γöö

@@ -1,3 +1,9 @@
+.github
+.cursor
+
+.thanhtung
+.env
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -216,3 +222,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+node_modules
+FIT4110_TaiLieuMonHoc/MẬT MÃ TÌNH YÊU SMART CAMPUS.pdf

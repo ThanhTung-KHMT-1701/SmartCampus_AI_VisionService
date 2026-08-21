@@ -1,0 +1,11 @@
+﻿
+ΓåÆ POST http://127.0.0.1:8000/vision/detect 
+  422 Unprocessable Entity Γÿà 26ms time Γÿà 166BΓåæ 287BΓåô size Γÿà 10Γåæ 4Γåô headers Γÿà 0 cookies
+  Γöî Γåô application/problem+json Γÿà problem+json Γÿà text Γÿà utf8 Γÿà 287B
+  Γöé {"type":"https://ai-vision.campus.local/errors/validat
+  Γöé ion","title":"Dß╗» liß╗çu kh├┤ng hß╗úp lß╗ç","status":422,"deta
+  Γöé il":"Payload kh├┤ng khß╗¢p schema","errors":[{"field":"",
+  Γöé "code":"model_attributes_type","message":"Input should
+  Γöé  be a valid dictionary or object to extract fields fro
+  Γöé m"}]}
+  Γöö

@@ -1,0 +1,24 @@
+================================================================================
+Spectral Lint Report - AI Vision OpenAPI Contract
+FIT4110 Lab 03 - Team Vision
+Date: 2026-08-13
+================================================================================
+
+Command: npx spectral lint contracts/ai-vision.openapi.yaml --ruleset .spectral.yaml
+
+File: contracts/ai-vision.openapi.yaml
+
+Result:
+  0 errors
+  1 warning (info-contact - Info object should have contact, non-blocking)
+  0 infos
+  0 hints
+
+Status: PASS (lint passed with non-blocking warning)
+
+Explanation:
+  - The warning about missing `contact` is informational only.
+  - All hard rules (operation-operationId, schema validation, etc.) passed.
+  - Contract is ready for use in Postman collection and Newman tests.
+
+================================================================================

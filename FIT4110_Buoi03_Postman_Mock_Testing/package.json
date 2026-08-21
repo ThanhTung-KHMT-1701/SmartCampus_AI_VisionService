@@ -1,0 +1,32 @@
+{
+  "name": "fit4110_lab03_postman_mock_testing",
+  "version": "0.3.0",
+  "private": true,
+  "description": "FIT4110 Lab 03 - Postman, Mock Server, Contract Testing, Newman CI",
+  "scripts": {
+    "mock:iot": "prism mock contracts/iot-ingestion.openapi.yaml -p 4010 --host 0.0.0.0",
+    "mock:vision": "prism mock contracts/ai-vision.openapi.yaml -p 4011 --host 0.0.0.0",
+    "mock:all": "sh -c 'npm run mock:iot & npm run mock:vision & wait'",
+    "serve:vision": "node scripts/run-service.js vision",
+    "serve:camera-mock": "node scripts/run-service.js camera-mock",
+    "serve:core-mock": "node scripts/run-service.js core-mock",
+    "lint:contracts": "spectral lint contracts/*.yaml --ruleset .spectral.yaml --fail-severity error",
+    "lint:vision": "spectral lint contracts/ai-vision.openapi.yaml --ruleset .spectral.yaml",
+    "lint:iot": "spectral lint contracts/iot-ingestion.openapi.yaml --ruleset .spectral.yaml",
+    "test:mock": "newman run postman/collections/FIT4110_lab03_iot_ingestion.postman_collection.json -e postman/environments/FIT4110_lab03_mock.postman_environment.json --reporters cli,junit --reporter-junit-export reports/newman-report-mock.xml",
+    "test:local": "newman run postman/collections/FIT4110_lab03_iot_ingestion.postman_collection.json -e postman/environments/FIT4110_lab03_local.postman_environment.json --reporters cli,junit --reporter-junit-export reports/newman-report-local.xml",
+    "test:html": "newman run postman/collections/FIT4110_lab03_iot_ingestion.postman_collection.json -e postman/environments/FIT4110_lab03_mock.postman_environment.json --reporters cli,htmlextra --reporter-htmlextra-export reports/newman-report.html",
+    "test:vision:mock": "newman run postman/collections/FIT4110_lab03_ai_vision.postman_collection.json -e postman/environments/FIT4110_lab03_ai_vision_mock.postman_environment.json --reporters cli,junit,htmlextra --reporter-junit-export reports/vision-newman-report-mock.xml --reporter-htmlextra-export reports/vision-newman-report-mock.html",
+    "test:vision:local": "newman run postman/collections/FIT4110_lab03_ai_vision.postman_collection.json -e postman/environments/FIT4110_lab03_ai_vision_local.postman_environment.json --reporters cli,junit,htmlextra --reporter-junit-export reports/vision-newman-report-local.xml --reporter-htmlextra-export reports/vision-newman-report-local.html",
+    "test:vision:data": "newman run postman/collections/FIT4110_lab03_ai_vision.postman_collection.json -e postman/environments/FIT4110_lab03_ai_vision_mock.postman_environment.json --iteration-data mock-data/vision-detect-valid.json --reporters cli,junit --reporter-junit-export reports/vision-newman-report-data.xml",
+    "test:ci": "npm run lint:contracts && npm run test:mock",
+    "test:ci:vision": "npm run lint:vision && npm run test:vision:mock"
+  },
+  "devDependencies": {
+    "@stoplight/prism-cli": "^5.14.2",
+    "@stoplight/spectral-cli": "^6.15.0",
+    "newman": "^6.2.1",
+    "newman-reporter-htmlextra": "^1.23.1",
+    "wait-on": "^7.2.0"
+  }
+}

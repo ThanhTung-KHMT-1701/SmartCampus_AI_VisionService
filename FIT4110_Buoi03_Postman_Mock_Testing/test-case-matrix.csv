@@ -1,0 +1,23 @@
+ID,Folder,Endpoint,Method,Scenario,Input file/body,Expected status,Expected response check,Type,Pass/Fail,Evidence
+TC01,00_Health,/health,GET,Service is alive,-,200,status=ok,service=ai-vision,health,Pass,reports/vision-newman-report-mock.xml
+TC02,01_Functional,/vision/detect,POST,Detect with image_url,happy path body,200,has detection_id,has detections array,has camera_id,functional,Pass,reports/vision-newman-report-mock.xml
+TC03,01_Functional,/vision/detect,POST,Detect with image_base64,happy path body,200,has detection_id,has camera_id,functional,Pass,reports/vision-newman-report-mock.xml
+TC04,01_Functional,/vision/detections/{id},GET,Get detection by id,valid UUID,200,has detection_id,functional,Pass,reports/vision-newman-report-mock.xml
+TC05,01_Functional,/vision/results/recent,GET,List recent detections with filter,limit=10&camera_id=cam-gate-01,200,has items array,has pagination,functional,Pass,reports/vision-newman-report-mock.xml
+TC06,01_Functional,/vision/face-match,POST,Face match with reference,match body,200,has match_id,status in enum,confidence in [0,1],functional,Pass,reports/vision-newman-report-mock.xml
+TC07,01_Functional,/vision/models/info,GET,Get AI model info,-,200,has model_id,has classes,status in enum,functional,Pass,reports/vision-newman-report-mock.xml
+TC08,02_Auth,/vision/detections/{id},GET,Valid token accepted,valid token,200 or 404,not 401/403,auth,Pass,reports/vision-newman-report-mock.xml
+TC09,02_Auth,/vision/detect,POST,Missing token (-mock),- (mock),skip or 401/403,auth,Pass,reports/vision-newman-report-mock.xml
+TC10,02_Auth,/vision/detect,POST,Invalid token (-mock),- (mock),skip or 401/403,auth,Pass,reports/vision-newman-report-mock.xml
+TC11,03_Negative,/vision/detect,POST,Missing required camera_id,mock-data/vision-detect-missing-camera-id.json,400 or 422,ProblemDetails shape,negative,Pass,reports/vision-newman-report-mock.xml
+TC12,03_Negative,/vision/detect,POST,Missing image input,mock-data/vision-detect-missing-image.json,400 or 422,has detail,negative,Pass,reports/vision-newman-report-mock.xml
+TC13,03_Negative,/vision/detections/{id},GET,Invalid UUID format,invalid path,400 or 404 or 422,negative,Pass,reports/vision-newman-report-mock.xml
+TC14,03_Negative,/vision/results/recent,GET,Limit above max (999),query limit=999,400 or 422,negative,Pass,reports/vision-newman-report-mock.xml
+TC15,04_Boundary,/vision/detect,POST,Confidence threshold at min (0.0),boundary-low body,200,has detection_id,boundary,Pass,reports/vision-newman-report-mock.xml
+TC16,04_Boundary,/vision/detect,POST,Confidence threshold at max (1.0),boundary-high body,200,has detections,boundary,Pass,reports/vision-newman-report-mock.xml
+TC17,04_Boundary,/vision/face-match,POST,Threshold at boundary (0.0),boundary body,200,threshold is number,boundary,Pass,reports/vision-newman-report-mock.xml
+TC18,04_Boundary,/vision/results/recent,GET,Limit at max (100),query limit=100,200,has items,boundary,Pass,reports/vision-newman-report-mock.xml
+TC19,05_Consumer,/coreBusinessMockUrl/alerts/recent,GET,Provider calls Core Business mock,smoke body,200/201/404 or skip,consumer-side,Pass,reports/vision-newman-report-mock.xml
+TC20,05_Consumer,/cameraStreamMockUrl/frames,POST,Provider calls Camera Stream mock,smoke body,200/201/404 or skip,consumer-side,Pass,reports/vision-newman-report-mock.xml
+TC21,06_Local,/vision/detect,POST,Local latency < 5000ms,plain body,200,response time SLA,local-only,Pass,reports/vision-newman-report-local.xml
+TC22,06_Local,/health,GET,Local health < 500ms,-,200,response time SLA,local-only,Pass,reports/vision-newman-report-local.xml

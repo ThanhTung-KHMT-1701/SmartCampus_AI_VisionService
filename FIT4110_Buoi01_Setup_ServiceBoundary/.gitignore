@@ -1,0 +1,15 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+node_modules/
+reports/*.html
+reports/*.xml
+reports/*.json
+!reports/.gitkeep
+*.tar
+*.zip
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,6 @@
+{
+  "camera_id": "cam-gate-01",
+  "image_url": "http://storage.campus.local/images/frame-valid-001.jpg",
+  "timestamp": "2026-08-13T07:30:00Z",
+  "confidence_threshold": 0.5
+}

@@ -1,0 +1,56 @@
+extends:
+  - spectral:oas
+
+rules:
+  campus-openapi-31:
+    description: Lab 02 bắt buộc dùng OpenAPI 3.1.0.
+    message: "File phải khai báo openapi: 3.1.0."
+    severity: error
+    given: "$.openapi"
+    then:
+      function: pattern
+      functionOptions:
+        match: ^3\.1\.0$
+
+  campus-no-nullable:
+    description: "OpenAPI 3.1 dùng union type với null, không dùng nullable: true."
+    message: "Không dùng nullable. Hãy dùng type: [string, \"null\"] hoặc union type tương ứng."
+    severity: error
+    given: "$..nullable"
+    then:
+      function: falsy
+
+  campus-require-problem-schema:
+    description: API phải có schema Problem cho response lỗi.
+    message: Thiếu components.schemas.Problem.
+    severity: error
+    given: "$.components.schemas.Problem"
+    then:
+      function: truthy
+
+  campus-operation-operationId:
+    description: Mỗi operation cần operationId.
+    message: Operation thiếu operationId.
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: operationId
+      function: truthy
+
+  campus-operation-summary:
+    description: Mỗi operation cần summary.
+    message: Operation thiếu summary.
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: summary
+      function: truthy
+
+  campus-operation-tags:
+    description: Mỗi operation cần tags để nhóm API.
+    message: Operation thiếu tags.
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: tags
+      function: truthy

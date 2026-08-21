@@ -1,0 +1,23 @@
+﻿
+ΓåÆ GET http://127.0.0.1:8000/vision/results/recent?limit=10&camera_id=cam-gate-01 
+  200 OK Γÿà 23ms time Γÿà 0BΓåæ 957BΓåô size Γÿà 8Γåæ 4Γåô headers Γÿà 0 cookies
+  Γöî Γåô application/json Γÿà json Γÿà json Γÿà utf8 Γÿà 957B
+  Γöé {"items":[{"detection_id":"166a240c-58cf-4e7a-ae28-c64
+  Γöé eaaed7ccd","camera_id":"cam-gate-01","detections":[{"l
+  Γöé abel":"person","confidence":0.95,"bbox":{"x":100,"y":5
+  Γöé 0,"width":80,"height":150},"class_id":0}],"risk_level"
+  Γöé :"LOW","model_version":"yolov8n-v1.0","processing_time
+  Γöé _ms":35,"timestamp":"2026-08-13T02:33:45Z"},{"detectio
+  Γöé n_id":"8b5dc3c0-5971-4b95-bebf-035f19b51237","camera_i
+  Γöé d":"cam-gate-01","detections":[{"label":"person","conf
+  Γöé idence":0.95,"bbox":{"x":100,"y":50,"width":80,"height
+  Γöé ":150},"class_id":0}],"risk_level":"LOW","model_versio
+  Γöé n":"yolov8n-v1.0","processing_time_ms":35,"timestamp":
+  Γöé "2026-08-13T02:32:59Z"},{"detection_id":"8db3d509-a66f
+  Γöé -4c9e-87b6-75590636aa4f","camera_id":"cam-gate-01","de
+  Γöé tections":[{"label":"person","confidence":0.95,"bbox":
+  Γöé {"x":100,"y":50,"width":80,"height":150},"class_id":0}
+  Γöé ],"risk_level":"LOW","model_version":"yolov8n-v1.0","p
+  Γöé rocessing_time_ms":35,"timestamp":"2026-08-13T02:28:59
+  Γöé Z"}],"nextCursor":null,"hasMore":false}
+  Γöö

@@ -1,0 +1,197 @@
+﻿[
+    {
+        "Id":  "TC01",
+        "Title":  "Health check returns 200 + status=ok",
+        "Method":  "GET",
+        "Url":  "http://127.0.0.1:8000/health",
+        "ExpectedStatus":  200,
+        "ActualStatus":  200,
+        "Body":  [
+
+                 ],
+        "Result":  "PASS",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC01.stdout.txt"
+    },
+    {
+        "Id":  "TC02",
+        "Title":  "POST /vision/detect with image_url -\u003e 200",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:8000/vision/detect",
+        "ExpectedStatus":  200,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "FAIL",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC02.stdout.txt"
+    },
+    {
+        "Id":  "TC03",
+        "Title":  "POST /vision/detect with image_base64 -\u003e 200",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:8000/vision/detect",
+        "ExpectedStatus":  200,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "FAIL",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC03.stdout.txt"
+    },
+    {
+        "Id":  "TC04",
+        "Title":  "POST /vision/detect confidence_threshold=1.0 (max) -\u003e 200",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:8000/vision/detect",
+        "ExpectedStatus":  200,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "FAIL",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC04.stdout.txt"
+    },
+    {
+        "Id":  "TC05",
+        "Title":  "GET /vision/detections/{id} -\u003e 200",
+        "Method":  "GET",
+        "Url":  "http://127.0.0.1:8000/vision/detections/166a240c-58cf-4e7a-ae28-c64eaaed7ccd",
+        "ExpectedStatus":  200,
+        "ActualStatus":  200,
+        "Body":  [
+
+                 ],
+        "Result":  "PASS",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC05.stdout.txt"
+    },
+    {
+        "Id":  "TC06",
+        "Title":  "GET /vision/results/recent?limit=10\u0026camera_id=cam-gate-01 -\u003e 200",
+        "Method":  "GET",
+        "Url":  "http://127.0.0.1:8000/vision/results/recent?limit=10\u0026camera_id=cam-gate-01",
+        "ExpectedStatus":  200,
+        "ActualStatus":  200,
+        "Body":  [
+
+                 ],
+        "Result":  "PASS",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC06.stdout.txt"
+    },
+    {
+        "Id":  "TC07",
+        "Title":  "POST /vision/face-match happy path -\u003e 200",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:8000/vision/face-match",
+        "ExpectedStatus":  200,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "FAIL",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC07.stdout.txt"
+    },
+    {
+        "Id":  "TC08",
+        "Title":  "GET /vision/models/info -\u003e 200",
+        "Method":  "GET",
+        "Url":  "http://127.0.0.1:8000/vision/models/info",
+        "ExpectedStatus":  200,
+        "ActualStatus":  200,
+        "Body":  [
+
+                 ],
+        "Result":  "PASS",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC08.stdout.txt"
+    },
+    {
+        "Id":  "TC09",
+        "Title":  "GET /vision/detections/{random uuid} valid token -\u003e 404 (not 401/403)",
+        "Method":  "GET",
+        "Url":  "http://127.0.0.1:8000/vision/detections/00000000-0000-0000-0000-000000000000",
+        "ExpectedStatus":  404,
+        "ActualStatus":  404,
+        "Body":  [
+
+                 ],
+        "Result":  "PASS",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC09.stdout.txt"
+    },
+    {
+        "Id":  "TC10",
+        "Title":  "POST /vision/detect missing token -\u003e 401",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:8000/vision/detect",
+        "ExpectedStatus":  401,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "FAIL",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC10.stdout.txt"
+    },
+    {
+        "Id":  "TC11",
+        "Title":  "POST /vision/detect wrong token -\u003e 401",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:8000/vision/detect",
+        "ExpectedStatus":  401,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "FAIL",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC11.stdout.txt"
+    },
+    {
+        "Id":  "TC12",
+        "Title":  "POST /vision/detect missing camera_id -\u003e 422",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:8000/vision/detect",
+        "ExpectedStatus":  422,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "PASS",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC12.stdout.txt"
+    },
+    {
+        "Id":  "TC13",
+        "Title":  "POST /vision/detect missing image -\u003e 422",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:8000/vision/detect",
+        "ExpectedStatus":  422,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "PASS",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC13.stdout.txt"
+    },
+    {
+        "Id":  "TC14",
+        "Title":  "GET /vision/detections/not-a-uuid -\u003e 422",
+        "Method":  "GET",
+        "Url":  "http://127.0.0.1:8000/vision/detections/not-a-uuid",
+        "ExpectedStatus":  422,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "PASS",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC14.stdout.txt"
+    },
+    {
+        "Id":  "TC15",
+        "Title":  "POST /frames on Camera Stream mock -\u003e 201",
+        "Method":  "POST",
+        "Url":  "http://127.0.0.1:4014/frames",
+        "ExpectedStatus":  201,
+        "ActualStatus":  422,
+        "Body":  [
+
+                 ],
+        "Result":  "FAIL",
+        "Evidence":  "E:\\dnu.khmt.1701.1771040029@gmail.com\\GithubClassroom\\DichVuKetNoiVaCongNgheNenTang_1771040029\\FIT4110_Buoi03_Postman_Mock_Testing\\reports\\evidence\\TC15.stdout.txt"
+    }
+]

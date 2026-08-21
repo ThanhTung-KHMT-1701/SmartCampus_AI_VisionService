@@ -1,0 +1,88 @@
+---
+kind: postman-cli-collection-run-executions
+schemaVersion: 1
+runId: 9e9f7a5b-5dfd-4a29-af0f-b6663da512e3
+summaryFile: cli-request-collection-2026-08-13-09-25-20.collection-run-summary.yaml
+collection:
+  id: 6b19aeed-93bd-41c8-a7ca-b9da231b3430
+  name: CLI Request Collection
+generatedAt: '2026-08-13T02:25:20.754Z'
+---
+iteration: 0
+cursorRef: 62aad0f2-1b55-4a87-98ee-25038791127a
+item:
+  id: 734da6ae-61a7-4870-af97-3077640d9227
+  name: GET http://127.0.0.1:8000/vision/detections/00000000-0000-0000-0000-000000000000
+  folders:
+    - GET http://127.0.0.1:8000/vision/detections/00000000-0000-0000-0000-000000000000
+  fullName: GET http://127.0.0.1:8000/vision/detections/00000000-0000-0000-0000-000000000000
+  parent:
+    id: 6b19aeed-93bd-41c8-a7ca-b9da231b3430
+    name: CLI Request Collection
+    folders: []
+request:
+  method: GET
+  url:
+    protocol: http
+    port: '8000'
+    path:
+      - vision
+      - detections
+      - 00000000-0000-0000-0000-000000000000
+    host:
+      - '127'
+      - '0'
+      - '0'
+      - '1'
+    query: []
+    variable: []
+  headers:
+    - disabled: false
+      description:
+        content: 'Header: Authorization'
+        type: text/plain
+      key: Authorization
+      value: Bearer local-dev-token-vision
+    - key: User-Agent
+      value: PostmanRuntime/7.54.0
+      system: true
+    - key: Accept
+      value: '*/*'
+      system: true
+    - key: Cache-Control
+      value: no-cache
+      system: true
+    - key: Postman-Token
+      value: d935a3d5-4bc8-4b14-a095-550237e15c79
+      system: true
+    - key: Host
+      value: 127.0.0.1:8000
+      system: true
+    - key: Accept-Encoding
+      value: gzip, deflate, br
+      system: true
+    - key: Connection
+      value: keep-alive
+      system: true
+  body:
+    mode: raw
+    raw: ''
+    disabled: true
+response:
+  id: d0ea8b56-3192-4540-918d-31393b106615
+  code: 404
+  status: Not Found
+  responseTime: 30
+  responseSize: 266
+  headers:
+    - key: date
+      value: Thu, 13 Aug 2026 02:25:20 GMT
+    - key: server
+      value: uvicorn
+    - key: content-length
+      value: '266'
+    - key: content-type
+      value: application/problem+json
+  body: '{"type":"https://ai-vision.campus.local/errors/404","title":"Detection 00000000-0000-0000-0000-000000000000 không tồn tại hoặc đã hết hạn","status":404,"detail":"Detection 00000000-0000-0000-0000-000000000000 không tồn tại hoặc đã hết hạn"}'
+tests: []
+errors: []

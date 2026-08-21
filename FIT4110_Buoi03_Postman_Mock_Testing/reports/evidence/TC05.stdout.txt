@@ -1,0 +1,11 @@
+﻿
+ΓåÆ GET http://127.0.0.1:8000/vision/detections/166a240c-58cf-4e7a-ae28-c64eaaed7ccd 
+  200 OK Γÿà 23ms time Γÿà 0BΓåæ 303BΓåô size Γÿà 8Γåæ 4Γåô headers Γÿà 0 cookies
+  Γöî Γåô application/json Γÿà json Γÿà json Γÿà utf8 Γÿà 303B
+  Γöé {"detection_id":"166a240c-58cf-4e7a-ae28-c64eaaed7ccd"
+  Γöé ,"camera_id":"cam-gate-01","detections":[{"label":"per
+  Γöé son","confidence":0.95,"bbox":{"x":100,"y":50,"width":
+  Γöé 80,"height":150},"class_id":0}],"risk_level":"LOW","mo
+  Γöé del_version":"yolov8n-v1.0","processing_time_ms":35,"t
+  Γöé imestamp":"2026-08-13T02:33:45Z"}
+  Γöö

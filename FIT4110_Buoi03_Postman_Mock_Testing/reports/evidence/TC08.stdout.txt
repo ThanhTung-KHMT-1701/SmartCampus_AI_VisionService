@@ -1,0 +1,15 @@
+﻿
+ΓåÆ GET http://127.0.0.1:8000/vision/models/info 
+  200 OK Γÿà 23ms time Γÿà 0BΓåæ 520BΓåô size Γÿà 8Γåæ 4Γåô headers Γÿà 0 cookies
+  Γöî Γåô application/json Γÿà json Γÿà json Γÿà utf8 Γÿà 520B
+  Γöé {"model_id":"yolov8n-v1.0","model_type":"object_detect
+  Γöé ion","framework":"ultralytics","framework_version":"8.
+  Γöé 3.0","classes":[{"id":0,"name":"person","description":
+  Γöé "Con ng╞░ß╗¥i"},{"id":2,"name":"car","description":"├ö t├┤"
+  Γöé },{"id":3,"name":"motorcycle","description":"Xe m├íy"},
+  Γöé {"id":15,"name":"cat","description":"M├¿o"},{"id":16,"n
+  Γöé ame":"dog","description":"Ch├│"}],"confidence_threshold
+  Γöé _default":0.5,"input_size":640,"accuracy_map":0.73,"in
+  Γöé ference_time_ms_avg":35,"last_updated":"2026-07-15T00:
+  Γöé 00:00Z","status":"ACTIVE"}
+  Γöö

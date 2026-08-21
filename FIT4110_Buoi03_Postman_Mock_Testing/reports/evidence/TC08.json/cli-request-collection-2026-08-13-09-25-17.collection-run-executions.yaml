@@ -1,0 +1,88 @@
+---
+kind: postman-cli-collection-run-executions
+schemaVersion: 1
+runId: f4fad830-ae6f-4f12-9e48-2e978d923890
+summaryFile: cli-request-collection-2026-08-13-09-25-17.collection-run-summary.yaml
+collection:
+  id: 9ff72ab1-2caa-414e-a855-eef7de94c1e6
+  name: CLI Request Collection
+generatedAt: '2026-08-13T02:25:18.097Z'
+---
+iteration: 0
+cursorRef: b239bd99-0498-4bde-9ba4-a33fb9c51a95
+item:
+  id: d280a4ae-2771-4775-98b1-d9378fa2a772
+  name: GET http://127.0.0.1:8000/vision/models/info
+  folders:
+    - GET http://127.0.0.1:8000/vision/models/info
+  fullName: GET http://127.0.0.1:8000/vision/models/info
+  parent:
+    id: 9ff72ab1-2caa-414e-a855-eef7de94c1e6
+    name: CLI Request Collection
+    folders: []
+request:
+  method: GET
+  url:
+    protocol: http
+    port: '8000'
+    path:
+      - vision
+      - models
+      - info
+    host:
+      - '127'
+      - '0'
+      - '0'
+      - '1'
+    query: []
+    variable: []
+  headers:
+    - disabled: false
+      description:
+        content: 'Header: Authorization'
+        type: text/plain
+      key: Authorization
+      value: Bearer local-dev-token-vision
+    - key: User-Agent
+      value: PostmanRuntime/7.54.0
+      system: true
+    - key: Accept
+      value: '*/*'
+      system: true
+    - key: Cache-Control
+      value: no-cache
+      system: true
+    - key: Postman-Token
+      value: 86e7957e-89bb-4467-94e0-7f06fabca76e
+      system: true
+    - key: Host
+      value: 127.0.0.1:8000
+      system: true
+    - key: Accept-Encoding
+      value: gzip, deflate, br
+      system: true
+    - key: Connection
+      value: keep-alive
+      system: true
+  body:
+    mode: raw
+    raw: ''
+    disabled: true
+response:
+  id: fd6ecd73-6250-41d7-9fdb-504ed0b7d48b
+  code: 200
+  status: OK
+  responseTime: 28
+  responseSize: 520
+  headers:
+    - key: date
+      value: Thu, 13 Aug 2026 02:25:18 GMT
+    - key: server
+      value: uvicorn
+    - key: content-length
+      value: '520'
+    - key: content-type
+      value: application/json
+  body: '{"model_id":"yolov8n-v1.0","model_type":"object_detection","framework":"ultralytics","framework_version":"8.3.0","classes":[{"id":0,"name":"person","description":"Con người"},{"id":2,"name":"car","description":"Ô tô"},{"id":3,"name":"motorcycle","description":"Xe máy"},{"id":15,"name":"cat","description":"Mèo"},{"id":16,"name":"dog","description":"Chó"}],"confidence_threshold_default":0.5,"input_size":640,"accuracy_map":0.73,"inference_time_ms_avg":35,"last_updated":"2026-07-15T00:00:00Z","status":"ACTIVE"}'
+tests: []
+errors: []

@@ -1,0 +1,24 @@
+ID,Folder,Endpoint,Method,Scenario,Input file/body,Expected status,Expected response check,Type,Pass/Fail,Evidence
+TC01,Health,/health,GET,Service is alive,-,200,"status=ok, service=ai-vision, modelVersion=yolov8n-v1.0",health,Pass,reports/vision-newman-report-local.html
+TC02,Functional,/vision/detect,POST,Detect with image_url,inline (cam-gate-01 + url),200,"detection_id is UUID, camera_id matches, detections array present, model_version set",functional,Pass,reports/vision-newman-report-local.html
+TC03,Functional,/vision/detect,POST,Detect with image_base64,inline (cam-library-02 + base64),200,"detection_id is UUID, camera_id matches",functional,Pass,reports/vision-newman-report-local.html
+TC04,Functional,/vision/detect,POST,Capture detection_id for follow-up GET,inline (cam-gate-01),200,"detection_id saved to env.detectionId",functional,Pass,reports/vision-newman-report-local.html
+TC05,Functional,/vision/detections/{id},GET,Get detection by id (uses captured id),{{detectionId}},200,"detection_id matches request",functional,Pass,reports/vision-newman-report-local.html
+TC06,Functional,/vision/results/recent,GET,Recent detections with filter,?limit=10&camera_id=cam-gate-01,200,"items array, hasMore, nextCursor",functional,Pass,reports/vision-newman-report-local.html
+TC07,Functional,/vision/face-match,POST,Face match happy path,inline (image_url + reference + threshold=0.75),200,"match_id UUID, status in {MATCHED,NOT_MATCHED,LOW_CONFIDENCE}, confidence in [0,1]",functional,Pass,reports/vision-newman-report-local.html
+TC08,Functional,/vision/models/info,GET,Get AI model info,-,200,"model_id, framework, classes array, status in {ACTIVE,LOADING,ERROR,DEPRECATED}",functional,Pass,reports/vision-newman-report-local.html
+TC09,Auth,/vision/detections/{id},GET,Valid token accepted (any UUID),{detectionId},200 or 404,not 401/403,auth,Pass,reports/vision-newman-report-local.html
+TC10,Auth,/vision/detect,POST,Missing token rejected (local only),inline (no Authorization),401 or 403 (local); skip on mock,skip on mock,auth,Pass (skipped on mock; pass on local),reports/vision-newman-report-local.html
+TC11,Auth,/vision/detect,POST,Invalid token rejected (local only),inline + Bearer invalid-token-xyz,401 or 403 (local); skip on mock,skip on mock,auth,Pass (skipped on mock; pass on local),reports/vision-newman-report-local.html
+TC12,Negative,/vision/detect,POST,Missing camera_id,inline (no camera_id),422,"ProblemDetails: type, title, status, errors[]",negative,Pass,reports/vision-newman-report-local.html
+TC13,Negative,/vision/detect,POST,Missing image input,inline (only camera_id),422,"ProblemDetails with detail message",negative,Pass,reports/vision-newman-report-local.html
+TC14,Negative,/vision/detections/{id},GET,Invalid UUID,detectionId=not-a-uuid,400/404/422,client error,negative,Pass,reports/vision-newman-report-local.html
+TC15,Negative,/vision/results/recent,GET,Limit above max,?limit=999,400 or 422,client error,negative,Pass,reports/vision-newman-report-local.html
+TC16,Boundary,/vision/detect,POST,confidence_threshold=0.0 (min),inline,200,valid response,boundary,Pass,reports/vision-newman-report-local.html
+TC17,Boundary,/vision/detect,POST,confidence_threshold=1.0 (max),inline,200,valid response,boundary,Pass,reports/vision-newman-report-local.html
+TC18,Boundary,/vision/face-match,POST,threshold=0.0 (min),inline,200,"threshold field present",boundary,Pass,reports/vision-newman-report-local.html
+TC19,Boundary,/vision/results/recent,GET,limit=100 (max),?limit=100,200,items array,boundary,Pass,reports/vision-newman-report-local.html
+TC20,Consumer-smoke,{{coreBusinessMockUrl}}/alerts/recent,GET,Provider can call Core Business mock,?limit=5,200/201/404,parseable JSON,consumer-side,Pass,reports/vision-newman-report-local.html
+TC21,Consumer-smoke,{{cameraStreamMockUrl}}/frames,POST,Provider can call Camera Stream mock,inline (camera_id + frame_url),200/201,parseable JSON,consumer-side,Pass,reports/vision-newman-report-local.html
+TC22,Local-only,/vision/detect,POST,Latency below 5000ms (local only),inline,200,responseTime < 5000 (local); skip on mock,non-functional,Pass (skipped on mock; pass on local),reports/vision-newman-report-local.html
+TC23,Local-only,/health,GET,Health latency below 500ms (local only),-,200,responseTime < 500 (local); skip on mock,non-functional,Pass (skipped on mock; pass on local),reports/vision-newman-report-local.html

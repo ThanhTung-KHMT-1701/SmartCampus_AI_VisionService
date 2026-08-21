@@ -1,0 +1,10 @@
+﻿
+ΓåÆ GET http://127.0.0.1:8000/vision/detections/00000000-0000-0000-0000-000000000000 
+  404 Not Found Γÿà 23ms time Γÿà 0BΓåæ 266BΓåô size Γÿà 8Γåæ 4Γåô headers Γÿà 0 cookies
+  Γöî Γåô application/problem+json Γÿà problem+json Γÿà text Γÿà utf8 Γÿà 266B
+  Γöé {"type":"https://ai-vision.campus.local/errors/404","t
+  Γöé itle":"Detection 00000000-0000-0000-0000-000000000000 
+  Γöé kh├┤ng tß╗ôn tß║íi hoß║╖c ─æ├ú hß║┐t hß║ín","status":404,"detail":"
+  Γöé Detection 00000000-0000-0000-0000-000000000000 kh├┤ng t
+  Γöé ß╗ôn tß║íi hoß║╖c ─æ├ú hß║┐t hß║ín"}
+  Γöö

@@ -1,0 +1,68 @@
+kind: postman-cli-collection-run-summary
+schemaVersion: 1
+runId: 4f8e24a6-9606-4e0e-abdf-b8e17e973087
+state: completed
+generatedAt: '2026-08-13T02:25:33.953Z'
+files:
+  summary: cli-request-collection-2026-08-13-09-25-33.collection-run-summary.yaml
+  executions: cli-request-collection-2026-08-13-09-25-33.collection-run-executions.yaml
+meta:
+  collection:
+    id: 1f55f8a4-116e-4899-a92f-7e5e07dc0e57
+    name: CLI Request Collection
+    description:
+      content: Collection generated from postman request CLI command
+      type: text/plain
+  environment:
+    id: 153c44b1-321f-430d-8bac-43af74d9383b
+    name: null
+  started: '2026-08-13T02:25:33.828Z'
+  completed: '2026-08-13T02:25:33.953Z'
+  durationMs: 125
+environment:
+  cli:
+    version: 1.46.0
+    userAgent: Postman CLI/1.46.0
+  system:
+    os:
+      type: Windows_NT
+      platform: win32
+      arch: x64
+      release: 10.0.19045
+    hardware:
+      cpus: 8
+      totalMemory: 21369634816
+  isCI: false
+  ci: null
+  git:
+    branch: main
+    commit: 04ec1967d4e38fe60ca047043d7d6a2461261057
+    commitShort: 04ec196
+    remoteUrl: https://github.com/ThanhTung-KHMT-1701/DichVuKetNoiVaCongNgheNenTang_1771040029.git
+    dirty: true
+stats:
+  iterations:
+    executed: 1
+    errors: 0
+  executedRequests:
+    executed: 1
+    errors: 0
+  prerequestScripts:
+    executed: 0
+    errors: 0
+  postresponseScripts:
+    executed: 0
+    errors: 0
+  tests:
+    executed: 0
+    failed: 0
+  timeStats:
+    responseAverage: 26
+    responseMin: 26
+    responseMax: 26
+    responseStandardDeviation: 0
+transfers:
+  responseTotal: 144
+failures: []
+executionsRecorded: 1
+simulation: null

@@ -1,0 +1,80 @@
+---
+kind: postman-cli-collection-run-executions
+schemaVersion: 1
+runId: 6fe833a7-9e6d-4563-ba16-6e9289538890
+summaryFile: cli-request-collection-2026-08-13-09-24-59.collection-run-summary.yaml
+collection:
+  id: 66bccb81-10bd-46bd-9bdd-d03c66a90d0c
+  name: CLI Request Collection
+generatedAt: '2026-08-13T02:24:59.975Z'
+---
+iteration: 0
+cursorRef: 52321d06-b7fc-49ca-a800-3eb0566c3076
+item:
+  id: 9857744e-bd91-4e25-a9ab-31d508f1f38e
+  name: GET http://127.0.0.1:8000/health
+  folders:
+    - GET http://127.0.0.1:8000/health
+  fullName: GET http://127.0.0.1:8000/health
+  parent:
+    id: 66bccb81-10bd-46bd-9bdd-d03c66a90d0c
+    name: CLI Request Collection
+    folders: []
+request:
+  method: GET
+  url:
+    protocol: http
+    port: '8000'
+    path:
+      - health
+    host:
+      - '127'
+      - '0'
+      - '0'
+      - '1'
+    query: []
+    variable: []
+  headers:
+    - key: User-Agent
+      value: PostmanRuntime/7.54.0
+      system: true
+    - key: Accept
+      value: '*/*'
+      system: true
+    - key: Cache-Control
+      value: no-cache
+      system: true
+    - key: Postman-Token
+      value: 3ece2c7e-e320-4308-92bb-a4fa39eab76f
+      system: true
+    - key: Host
+      value: 127.0.0.1:8000
+      system: true
+    - key: Accept-Encoding
+      value: gzip, deflate, br
+      system: true
+    - key: Connection
+      value: keep-alive
+      system: true
+  body:
+    mode: raw
+    raw: ''
+    disabled: true
+response:
+  id: 2ed324bc-3b33-4c06-b1a1-24a5ae84cef3
+  code: 200
+  status: OK
+  responseTime: 43
+  responseSize: 134
+  headers:
+    - key: date
+      value: Thu, 13 Aug 2026 02:25:00 GMT
+    - key: server
+      value: uvicorn
+    - key: content-length
+      value: '134'
+    - key: content-type
+      value: application/json
+  body: '{"status":"ok","service":"ai-vision","version":"1.0.0","modelLoaded":true,"modelVersion":"yolov8n-v1.0","time":"2026-08-13T02:25:00Z"}'
+tests: []
+errors: []
