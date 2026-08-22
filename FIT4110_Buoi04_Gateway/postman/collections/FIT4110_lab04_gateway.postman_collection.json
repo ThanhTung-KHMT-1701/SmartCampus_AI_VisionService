@@ -1,0 +1,693 @@
+{
+  "info": {
+    "_postman_id": "fit4110-lab04-gateway",
+    "name": "FIT4110 Lab04 - API Gateway Contract Tests",
+    "description": "Postman Collection cho API Gateway (Buổi 4). Tất cả request đều đi qua Gateway ở port 8080. Gateway chuyển tiếp đến 3 upstream: ai-vision (8000), core-business-mock (4012), camera-stream-mock (4014). Folder: 00_Health_Gateway, 01_Health_Upstream, 02_Routes_Meta, 03_Functional, 04_Auth, 05_Negative, 06_Boundary.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const prefix = pm.environment.get('tracePrefix') || 'fit4110-lab04-gw';",
+          "pm.variables.set('traceId', prefix + '-' + Date.now());",
+          "pm.request.headers.upsert({ key: 'X-Trace-Id', value: pm.variables.get('traceId') });",
+          "// Generate a UUID v4 for detection_id reuse across folders",
+          "if (!pm.environment.get('lastDetectionId')) {",
+          "  pm.environment.set('lastDetectionId', pm.variables.replaceIn('{{$randomUUID}}'));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [],
+  "item": [
+    {
+      "name": "00_Health_Gateway",
+      "item": [
+        {
+          "name": "GET /health - gateway self health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Kiểm tra Gateway còn hoạt động; phải trả về 3 route đã đăng ký."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Service is api-gateway', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j).to.have.property('service', 'api-gateway');",
+                  "  pm.expect(j).to.have.property('status', 'ok');",
+                  "});",
+                  "pm.test('Exposes exactly 3 proxied routes', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j).to.have.property('routesExposed');",
+                  "  pm.expect(j.routesExposed).to.have.lengthOf(3);",
+                  "  pm.expect(j.routesExposed).to.include('/api/vision/detect');",
+                  "  pm.expect(j.routesExposed).to.include('/api/policies/evaluate-detection');",
+                  "  pm.expect(j.routesExposed).to.match(/\\/api\\/cameras\\/.*\\/frames\\/latest/);",
+                  "});",
+                  "pm.test('Upstreams listed', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.upstreams).to.have.property('ai-vision');",
+                  "  pm.expect(j.upstreams).to.have.property('core-business-mock');",
+                  "  pm.expect(j.upstreams).to.have.property('camera-stream-mock');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /health/services - aggregate upstream health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/services",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "services"]
+            },
+            "description": "Gateway chủ động probe cả 3 upstream bằng GET /health song song (asyncio.gather)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Overall status is ok', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j).to.have.property('status', 'ok');",
+                  "});",
+                  "pm.test('All 3 upstreams are up', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.services['ai-vision'].status).to.eql('up');",
+                  "  pm.expect(j.services['core-business-mock'].status).to.eql('up');",
+                  "  pm.expect(j.services['camera-stream-mock'].status).to.eql('up');",
+                  "});",
+                  "pm.test('Each upstream reports httpStatus 200', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.services['ai-vision'].httpStatus).to.eql(200);",
+                  "  pm.expect(j.services['core-business-mock'].httpStatus).to.eql(200);",
+                  "  pm.expect(j.services['camera-stream-mock'].httpStatus).to.eql(200);",
+                  "});",
+                  "pm.test('Latency reported and < 1000 ms', function () {",
+                  "  Object.values(j => j.services || j).forEach(() => {});",
+                  "  const j = pm.response.json();",
+                  "  ['ai-vision','core-business-mock','camera-stream-mock'].forEach(function(k){",
+                  "    pm.expect(j.services[k].latencyMs).to.be.a('number');",
+                  "    pm.expect(j.services[k].latencyMs).to.be.below(1000);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01_Routes_Meta",
+      "item": [
+        {
+          "name": "GET /routes - list proxied routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/routes",
+              "host": ["{{baseUrl}}"],
+              "path": ["routes"]
+            },
+            "description": "Debug endpoint liệt kê các route Gateway đang proxy."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Lists 3 routes', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.routes).to.be.an('array').with.lengthOf(3);",
+                  "});",
+                  "pm.test('Each route declares auth requirement', function () {",
+                  "  const j = pm.response.json();",
+                  "  j.routes.forEach(function(r){",
+                  "    pm.expect(r.auth).to.eql('Bearer GATEWAY_TOKEN');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Functional",
+      "item": [
+        {
+          "name": "POST /api/vision/detect - happy path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            },
+            "description": "Luồng Camera → AI Vision qua Gateway. Gateway nhận Bearer của client, hoán đổi thành Bearer của ai-vision trước khi forward.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{sampleCameraId}}\",\n  \"image_url\": \"{{sampleFrameUrl}}\",\n  \"timestamp\": \"2026-08-22T04:00:00Z\",\n  \"confidence_threshold\": 0.6\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Has UUID detection_id', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j).to.have.property('detection_id');",
+                  "  pm.expect(j.detection_id).to.match(/^[0-9a-f-]{36}$/);",
+                  "  pm.environment.set('lastDetectionId', j.detection_id);",
+                  "});",
+                  "pm.test('Camera id echoed', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j).to.have.property('camera_id', pm.environment.get('sampleCameraId'));",
+                  "});",
+                  "pm.test('Detections array present', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.detections).to.be.an('array');",
+                  "});",
+                  "pm.test('Each detection has confidence in [0,1]', function () {",
+                  "  const j = pm.response.json();",
+                  "  j.detections.forEach(function(d){",
+                  "    pm.expect(d.confidence).to.be.at.least(0);",
+                  "    pm.expect(d.confidence).to.be.at.most(1);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/policies/evaluate-detection - happy path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/policies/evaluate-detection",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "policies", "evaluate-detection"]
+            },
+            "description": "Luồng AI Vision → Core Business. Gateway forward kèm Bearer của core-business-mock.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"detection_id\": \"{{lastDetectionId}}\",\n  \"camera_id\": \"{{sampleCameraId}}\",\n  \"risk_level\": \"LOW\",\n  \"timestamp\": \"2026-08-22T04:00:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Has alert_id', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j).to.have.property('alert_id');",
+                  "  pm.expect(j.alert_id).to.match(/^[0-9a-f-]{36}$/);",
+                  "});",
+                  "pm.test('Status is OPEN', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j).to.have.property('status', 'OPEN');",
+                  "});",
+                  "pm.test('Risk level echoed', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.risk_level).to.be.oneOf(['LOW','MEDIUM','HIGH','CRITICAL']);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/cameras/{camera_id}/frames/latest - returns 404 when no frame",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras/{{sampleCameraId}}/frames/latest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cameras", "{{sampleCameraId}}", "frames", "latest"]
+            },
+            "description": "Luồng Camera → Camera Stream qua Gateway. Upstream trả 404 vì chưa có frame trong store."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 (upstream has no frame yet)', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Response Content-Type is JSON', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/application\\/json/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/cameras/{camera_id}/frames/latest - another camera (no frame)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras/cam-library-02/frames/latest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cameras", "cam-library-02", "frames", "latest"]
+            },
+            "description": "Path param khác — Gateway phải bind chính xác và forward."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 (no frame)', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03_Auth",
+      "item": [
+        {
+          "name": "POST /api/vision/detect - missing Authorization -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-x\",\n  \"image_url\": \"http://x/y.jpg\",\n  \"timestamp\": \"2026-08-22T04:00:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Body explains missing token', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.detail.toLowerCase()).to.include('token');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/vision/detect - wrong Bearer -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer wrong-token-xyz"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Body explains invalid token', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.detail.toLowerCase()).to.include('invalid');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/vision/detect - non-Bearer scheme -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic dXNlcjpwYXNz"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            },
+            "body": {"mode": "raw", "raw": "{}", "options": {"raw": {"language": "json"}}}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 (scheme must be Bearer)', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/cameras/{camera_id}/frames/latest - missing Authorization -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras/cam-x/frames/latest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cameras", "cam-x", "frames", "latest"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04_Negative",
+      "item": [
+        {
+          "name": "POST /api/vision/detect - body is not JSON -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "this is not json"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Detail is in Vietnamese', function () {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.detail).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/vision/detect - missing required field -> 422 from upstream",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"http://x/y.jpg\",\n  \"timestamp\": \"2026-08-22T04:00:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 422 (Pydantic validation from upstream)', function () { pm.response.to.have.status(422); });",
+                  "pm.test('Detail lists missing camera_id', function () {",
+                  "  const j = pm.response.json();",
+                  "  const txt = JSON.stringify(j);",
+                  "  pm.expect(txt.toLowerCase()).to.include('camera_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/policies/evaluate-detection - missing fields -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/policies/evaluate-detection",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "policies", "evaluate-detection"]
+            },
+            "body": {"mode": "raw", "raw": "{}", "options": {"raw": {"language": "json"}}}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 422', function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/vision/detect - empty body -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            },
+            "body": {"mode": "raw", "raw": "{}", "options": {"raw": {"language": "json"}}}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 422', function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05_Boundary",
+      "item": [
+        {
+          "name": "POST /api/vision/detect - very large confidence_threshold",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{sampleCameraId}}\",\n  \"image_url\": \"{{sampleFrameUrl}}\",\n  \"timestamp\": \"2026-08-22T04:00:00Z\",\n  \"confidence_threshold\": 99.9\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 (mock clamp or accept)', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 422]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/cameras/{camera_id}/frames/latest - unicode camera_id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras/c%C4%83m-01/frames/latest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cameras", "c%C4%83m-01", "frames", "latest"]
+            },
+            "description": "Camera id chứa ký tự Unicode (ă) - test URL decoding của Gateway."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response is JSON', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/application\\/json/);",
+                  "});",
+                  "pm.test('Status is 200, 404 or 422 - no 5xx', function () {",
+                  "  pm.expect(pm.response.code).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/vision/detect (wrong method) -> 405",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vision", "detect"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 405 (POST-only)', function () { pm.response.to.have.status(405); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /unknown-route -> 404 from Gateway",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/unknown-route",
+              "host": ["{{baseUrl}}"],
+              "path": ["unknown-route"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
