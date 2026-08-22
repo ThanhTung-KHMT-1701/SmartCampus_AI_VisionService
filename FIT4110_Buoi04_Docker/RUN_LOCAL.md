@@ -133,13 +133,37 @@ docker compose down --rmi all
 ## 8. Lệnh nhanh qua Makefile
 
 ```bash
-make build     # docker compose build
-make up        # docker compose up -d --build
-make down      # docker compose down
-make ps        # docker compose ps
-make logs      # xem log
-make health    # curl /health của 3 service
+make help          # in ra tất cả target kèm mô tả
+make build         # docker compose build
+make up            # docker compose up -d --build
+make down          # docker compose down
+make ps            # docker compose ps
+make logs          # xem log
+make health        # curl /health của 3 service
+make wait          # đợi /health AI Vision pass (CI helper)
+make test-wait     # wait + chạy Newman local
 make test-vision-local   # npm run test:vision:local
-make lint      # spectral lint contracts/ai-vision.openapi.yaml
-make clean     # down stack + xoá image + reports
+make test-vision-mock    # npm run test:vision:mock (Prism)
+make mock          # npm run mock:vision qua scripts/start-prism-mock.sh
+make lint          # spectral lint contracts/ai-vision.openapi.yaml
+make clean         # down stack + xoá image + reports
 ```
+
+## 9. Helper scripts (dùng trực tiếp hoặc qua Makefile)
+
+| Script | Mô tả |
+|---|---|
+| `scripts/wait-for-health.sh <host> <port> [timeout]` | Đợi `/health` 200 trước khi chạy bước tiếp theo. Dùng trong CI. |
+| `scripts/run-newman.sh [local|mock]` | Wrapper chạy Newman + xuất junit + htmlextra vào `reports/`. |
+| `scripts/start-prism-mock.sh` | Khởi Prism mock cho AI Vision trên port 4011 (Lab 03). |
+
+## 10. CI
+
+Repo có sẵn `.github/workflows/docker-newman.yml`. Khi push lên GitHub, workflow sẽ:
+
+1. Checkout code, cài npm.
+2. `docker compose build`.
+3. `docker compose up -d`.
+4. Đợi `/health` AI Vision pass (`scripts/wait-for-health.sh`).
+5. Chạy Newman (`scripts/run-newman.sh local`).
+6. Đăng report junit/htmlextra.
