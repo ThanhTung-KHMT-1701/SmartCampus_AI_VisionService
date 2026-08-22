@@ -1,36 +1,43 @@
-IMAGE_NAME ?= fit4110/iot-ingestion:lab04
-CONTAINER_NAME ?= fit4110-iot-lab04
-PORT ?= 8000
+.PHONY: build up down logs ps health test-vision-local test-vision-mock lint clean
 
-install:
-	npm install
-
-lint:
-	npm run lint:openapi
-
-mock:
-	npm run mock:iot
-
-test-mock:
-	npm run test:mock
+# Override images / container names if needed.
+COMPOSE ?= docker compose
+IMAGE_VISION ?= fit4110/ai-vision:lab04
+IMAGE_CORE   ?= fit4110/core-business-mock:lab04
+IMAGE_CAMERA ?= fit4110/camera-stream-mock:lab04
 
 build:
-	docker build -t $(IMAGE_NAME) .
+	$(COMPOSE) build
 
-run:
-	docker run --rm --name $(CONTAINER_NAME) -p $(PORT):8000 --env-file .env.example $(IMAGE_NAME)
+up:
+	$(COMPOSE) up -d --build
 
-run-detached:
-	docker run -d --rm --name $(CONTAINER_NAME) -p $(PORT):8000 --env-file .env.example $(IMAGE_NAME)
+down:
+	$(COMPOSE) down
+
+logs:
+	$(COMPOSE) logs -f --tail=100
+
+ps:
+	$(COMPOSE) ps
 
 health:
-	curl http://localhost:$(PORT)/health
+	curl -s http://localhost:8000/health | python -m json.tool
+	@echo "--- core-business-mock ---"
+	curl -s http://localhost:4012/health | python -m json.tool
+	@echo "--- camera-stream-mock ---"
+	curl -s http://localhost:4014/health | python -m json.tool
 
-test-docker:
-	npm run test:local
+lint:
+	npm run lint:vision
 
-stop:
-	docker stop $(CONTAINER_NAME) || true
+test-vision-mock:
+	npm run test:vision:mock
 
-clean-reports:
-	rm -f reports/*.xml reports/*.html reports/*.json
+test-vision-local:
+	npm run test:vision:local
+
+clean:
+	$(COMPOSE) down --remove-orphans
+	rm -f reports/newman-vision-local.xml reports/newman-vision-local.html
+	docker rmi $(IMAGE_VISION) $(IMAGE_CORE) $(IMAGE_CAMERA) 2>/dev/null || true

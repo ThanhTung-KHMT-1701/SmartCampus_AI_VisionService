@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# Multi-stage build for AI Vision Service (team-vision).
-# Final image runs as non-root and exposes /health for HEALTHCHECK.
+# Side mock — Camera Stream. Consumed by AI Vision smoke tests via camera-stream-mock:4014.
 
 FROM python:3.11-slim AS builder
 
@@ -23,9 +22,9 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
 
 ENV APP_HOST=0.0.0.0
-ENV APP_PORT=8000
+ENV APP_PORT=4014
 ENV PYTHONPATH=/app/src
-ENV AI_VISION_AUTH_TOKEN=local-dev-token-vision
+ENV CAMERA_AUTH_TOKEN=lab-token-camera
 
 WORKDIR /app
 
@@ -39,9 +38,9 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
-EXPOSE 8000
+EXPOSE 4014
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4014/health', timeout=3).read()" || exit 1
 
-CMD ["sh", "-c", "uvicorn ai_vision_service.main:app --host ${APP_HOST} --port ${APP_PORT} --app-dir /app/src"]
+CMD ["sh", "-c", "uvicorn side_mocks.camera_stream:app --host ${APP_HOST} --port ${APP_PORT} --app-dir /app/src"]
