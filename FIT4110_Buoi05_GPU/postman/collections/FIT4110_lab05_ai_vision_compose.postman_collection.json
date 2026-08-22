@@ -1,0 +1,952 @@
+{
+  "info": {
+    "_postman_id": "fit4110-lab03-ai-vision",
+    "name": "FIT4110 Lab03 - AI Vision Contract Tests",
+    "description": "Postman Collection cho AI Vision Service — Buổi 3. Cấu trúc folder: 00_Health, 01_Functional, 02_Auth, 03_Negative, 04_Boundary_Reliability, 05_Consumer_side_Smoke, 06_Local_only_NonFunctional. Mô phỏng luồng Camera Stream → AI Vision (Pair 01) và Core Business → AI Vision (Pair 02).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const prefix = pm.environment.get('tracePrefix') || 'fit4110-lab03';",
+          "pm.variables.set('traceId', prefix + '-vision-' + Date.now());",
+          "pm.request.headers.upsert({ key: 'X-Trace-Id', value: pm.variables.get('traceId') });"
+        ]
+      }
+    }
+  ],
+  "variable": [],
+  "item": [
+    {
+      "name": "00_Health",
+      "item": [
+        {
+          "name": "GET /health - service is alive",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Kiểm tra service còn hoạt động và model đã load"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has service status ok', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('status', 'ok');",
+                  "  pm.expect(json).to.have.property('service', 'ai-vision');",
+                  "});",
+                  "pm.test('Response has model version', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('modelVersion');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01_Functional",
+      "item": [
+        {
+          "name": "POST /vision/detect - happy path with image_url",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Phát hiện đối tượng từ image_url - luồng chính Camera → AI Vision",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"http://storage.campus.local/images/frame-001.jpg\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\",\n  \"confidence_threshold\": 0.6\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has detection_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "  pm.expect(json.detection_id).to.match(/^[0-9a-f-]{36}$/);",
+                  "});",
+                  "pm.test('Response has camera_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('camera_id');",
+                  "});",
+                  "pm.test('Detections array is present', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detections');",
+                  "  pm.expect(json.detections).to.be.an('array');",
+                  "});",
+                  "pm.test('Each detection has confidence in [0,1]', function () {",
+                  "  const json = pm.response.json();",
+                  "  json.detections.forEach(function (d) {",
+                  "    pm.expect(d.confidence).to.be.at.least(0);",
+                  "    pm.expect(d.confidence).to.be.at.most(1);",
+                  "  });",
+                  "});",
+                  "pm.test('Response has model_version', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('model_version');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - happy path with image_base64",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Phát hiện đối tượng từ ảnh Base64",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-library-02\",\n  \"image_base64\": \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=\",\n  \"timestamp\": \"2026-08-13T07:31:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Detection accepts base64 input', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "  pm.expect(json).to.have.property('camera_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - capture detection_id for follow-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Gọi detect để lấy detection_id thật cho các test follow-up",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"http://storage.campus.local/images/frame-for-getbyid.jpg\",\n  \"timestamp\": \"2026-08-13T07:35:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.detection_id) {",
+                  "  pm.collectionVariables.set('lastDetectionId', json.detection_id);",
+                  "  pm.environment.set('detectionId', json.detection_id);",
+                  "}",
+                  "pm.test('Saved detection_id for follow-up tests', function () {",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{detectionId} - get by id (uses captured id)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/{{detectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "{{detectionId}}"]
+            },
+            "description": "Lấy lại kết quả detection theo ID vừa capture"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has detection_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent - list recent detections",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent?limit=10&camera_id=cam-gate-01",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"],
+              "query": [
+                {"key": "limit", "value": "10"},
+                {"key": "camera_id", "value": "cam-gate-01"}
+              ]
+            },
+            "description": "Lấy danh sách detections gần đây, lọc theo camera"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has items array', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('items');",
+                  "  pm.expect(json.items).to.be.an('array');",
+                  "});",
+                  "pm.test('Response has pagination fields', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('hasMore');",
+                  "  pm.expect(json).to.have.property('nextCursor');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/face-match - matched result",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/face-match",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "face-match"]
+            },
+            "description": "So khớp khuôn mặt - luồng Core Business → AI Vision",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"http://storage.campus.local/images/face-detected.jpg\",\n  \"reference_image_url\": \"http://storage.campus.local/profiles/student-001.jpg\",\n  \"threshold\": 0.75,\n  \"trace_id\": \"trace-20260813-001\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has match_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('match_id');",
+                  "});",
+                  "pm.test('Response has valid status enum', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(['MATCHED', 'NOT_MATCHED', 'LOW_CONFIDENCE', 'ERROR']).to.include(json.status);",
+                  "});",
+                  "pm.test('Confidence and threshold are valid numbers', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.confidence).to.be.at.least(0);",
+                  "  pm.expect(json.confidence).to.be.at.most(1);",
+                  "  pm.expect(json.threshold).to.be.at.least(0);",
+                  "  pm.expect(json.threshold).to.be.at.most(1);",
+                  "});",
+                  "pm.test('Response has model_version', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('model_version');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/models/info - get AI model info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/models/info",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "models", "info"]
+            },
+            "description": "Lấy thông tin model AI đang dùng"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has model_id and framework', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('model_id');",
+                  "  pm.expect(json).to.have.property('framework');",
+                  "});",
+                  "pm.test('Response has classes array', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('classes');",
+                  "  pm.expect(json.classes).to.be.an('array');",
+                  "});",
+                  "pm.test('Status is valid enum', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(['ACTIVE', 'LOADING', 'ERROR', 'DEPRECATED']).to.include(json.status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Auth",
+      "item": [
+        {
+          "name": "GET /vision/detections/{detectionId} - valid token accepted",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/0196fb3d-4ad7-7d1e-9f49-5d5148d2babc",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "0196fb3d-4ad7-7d1e-9f49-5d5148d2babc"]
+            },
+            "description": "Token hợp lệ được chấp nhận"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Valid token request returns success or 404 (not 401/403)', function () {",
+                  "  pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - missing token rejected on real service",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Auth test thật: không dùng Prefer: code=401. Khi chạy trên mock, test được skip có kiểm soát.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"http://storage.campus.local/images/test.jpg\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const env = pm.environment.get('env') || 'mock';",
+                  "if (env === 'mock') {",
+                  "  pm.test('Skipped on mock: Prism does not enforce real auth', function () {",
+                  "    pm.expect(true).to.eql(true);",
+                  "  });",
+                  "} else {",
+                  "  pm.test('Missing token returns 401 or 403', function () {",
+                  "    pm.expect([401, 403]).to.include(pm.response.code);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - invalid token rejected on real service",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer invalid-token-xyz"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Token sai phải bị service thật từ chối",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"http://storage.campus.local/images/test.jpg\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const env = pm.environment.get('env') || 'mock';",
+                  "if (env === 'mock') {",
+                  "  pm.test('Skipped on mock: invalid token requires real auth middleware', function () {",
+                  "    pm.expect(true).to.eql(true);",
+                  "  });",
+                  "} else {",
+                  "  pm.test('Invalid token returns 401 or 403', function () {",
+                  "    pm.expect([401, 403]).to.include(pm.response.code);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03_Negative",
+      "item": [
+        {
+          "name": "POST /vision/detect - missing required camera_id returns 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Prefer", "value": "code=400"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Thiếu camera_id - validation error",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"http://storage.campus.local/images/test.jpg\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing required field returns client error', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error follows ProblemDetails shape', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('title');",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(json.status).to.be.within(400, 599);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - missing image input returns 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Prefer", "value": "code=400"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Không có image_url hoặc image_base64 - validation error",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing image input returns client error', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error has detail message', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detail');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{detectionId} - invalid UUID returns 400",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Prefer", "value": "code=400"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/not-a-uuid",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "not-a-uuid"]
+            },
+            "description": "Detection ID không phải UUID"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid UUID returns client error', function () {",
+                  "  pm.expect([400, 404, 422]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent - limit above max returns 400",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Prefer", "value": "code=400"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent?limit=999",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"],
+              "query": [{"key": "limit", "value": "999"}]
+            },
+            "description": "Limit vượt quá max=100"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Limit above max returns client error', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04_Boundary_Reliability",
+      "item": [
+        {
+          "name": "POST /vision/detect - confidence_threshold at min (0.0) accepted",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Confidence threshold = 0.0 (boundary min)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"http://storage.campus.local/images/frame.jpg\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\",\n  \"confidence_threshold\": 0.0\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Min boundary value is accepted', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "pm.test('Response has valid structure', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - confidence_threshold at max (1.0) accepted",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Confidence threshold = 1.0 (boundary max)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"http://storage.campus.local/images/frame.jpg\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\",\n  \"confidence_threshold\": 1.0\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Max boundary value returns success or empty', function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Response is valid structure', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detections');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/face-match - threshold at boundary (0.0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/face-match",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "face-match"]
+            },
+            "description": "Threshold = 0.0 - luôn match",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"http://storage.campus.local/images/face.jpg\",\n  \"reference_image_url\": \"http://storage.campus.local/profiles/student-001.jpg\",\n  \"threshold\": 0.0,\n  \"timestamp\": \"2026-08-13T07:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Threshold min boundary accepted', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "pm.test('Response has valid threshold field', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('threshold');",
+                  "  pm.expect(json.threshold).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent - limit at max (100) accepted",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent?limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"],
+              "query": [{"key": "limit", "value": "100"}]
+            },
+            "description": "Limit = 100 (boundary max)"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Max limit accepted', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "pm.test('Response contains items array', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('items');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05_Consumer_side_Smoke",
+      "item": [
+        {
+          "name": "Consumer smoke - team-core calls AI Vision mock",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{coreBusinessMockUrl}}/alerts/recent?limit=5",
+              "host": ["{{coreBusinessMockUrl}}"],
+              "path": ["alerts", "recent"],
+              "query": [{"key": "limit", "value": "5"}]
+            },
+            "description": "AI Vision (provider) gọi lại mock Core Business để verify downstream. Đây là pattern consumer-side smoke test - gọi mock của nhóm khác, không gọi lại API của chính mình."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.response.code || pm.response.code === 0) {",
+                  "  pm.test('Skipped: Core Business mock not available (start with npm run mock for that team)', function () {",
+                  "    pm.expect(true).to.eql(true);",
+                  "  });",
+                  "} else {",
+                  "  pm.test('Provider can call Core Business mock successfully', function () {",
+                  "    pm.expect([200, 201, 404]).to.include(pm.response.code);",
+                  "  });",
+                  "  pm.test('Consumer-side smoke response is parseable', function () {",
+                  "    pm.expect(pm.response.json()).to.be.an('object');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consumer smoke - team-camera calls AI Vision mock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{cameraStreamMockUrl}}/frames",
+              "host": ["{{cameraStreamMockUrl}}"],
+              "path": ["frames"]
+            },
+            "description": "AI Vision (provider) gọi lại mock Camera Stream để verify upstream mock. Pattern consumer-side smoke test.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"frame_url\": \"http://storage.campus.local/images/test.jpg\",\n  \"motion_detected\": true,\n  \"timestamp\": \"2026-08-13T07:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.response.code || pm.response.code === 0) {",
+                  "  pm.test('Skipped: Camera Stream mock not available', function () {",
+                  "    pm.expect(true).to.eql(true);",
+                  "  });",
+                  "} else {",
+                  "  pm.test('Provider can call Camera Stream mock successfully', function () {",
+                  "    pm.expect([200, 201, 404]).to.include(pm.response.code);",
+                  "  });",
+                  "  pm.test('Response is parseable JSON', function () {",
+                  "    pm.expect(pm.response.json()).to.be.an('object');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06_Local_only_NonFunctional",
+      "item": [
+        {
+          "name": "POST /vision/detect - local response time threshold",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Latency/SLA chỉ có ý nghĩa khi chạy service thật",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"http://storage.campus.local/images/frame.jpg\",\n  \"timestamp\": \"2026-08-13T07:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const env = pm.environment.get('env') || 'mock';",
+                  "if (env === 'local') {",
+                  "  pm.test('Local service responds under 5000ms (AI inference)', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "  });",
+                  "} else {",
+                  "  pm.test('Skipped on mock: mock latency is not evidence of real service reliability', function () {",
+                  "    pm.expect(true).to.eql(true);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /health - local response time threshold",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Health check latency"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const env = pm.environment.get('env') || 'mock';",
+                  "if (env === 'local') {",
+                  "  pm.test('Local health check responds under 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "  });",
+                  "} else {",
+                  "  pm.test('Skipped on mock: latency test only for local service', function () {",
+                  "    pm.expect(true).to.eql(true);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

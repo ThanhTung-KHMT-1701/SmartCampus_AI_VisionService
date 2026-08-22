@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1.7
+FROM docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# Cài Python 3.11 từ deadsnakes PPA (Ubuntu 22.04 mặc định có Python 3.10)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common \
+        curl \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python3.11 \
+        python3.11-venv \
+        python3.11-dev \
+        libgl1-mesa-glx \
+        libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 \
+    && ln -sf /usr/local/bin/pip3.11 /usr/local/bin/pip \
+    && ln -sf /usr/bin/python3.11 /usr/local/bin/python
+
+WORKDIR /service
+
+# Cài pip packages — dùng BuildKit cache mount để giữ downloaded packages giữa các lần build
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --break-system-packages \
+        ultralytics \
+        fastapi \
+        "uvicorn[standard]" \
+        requests \
+        opencv-python-headless
+
+# Copy source code VÀ pre-downloaded YOLO model
+COPY src/ai_service/ /service/
+COPY models/ /models/
+
+EXPOSE 9000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=5).read()" || exit 1
+
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9000"]

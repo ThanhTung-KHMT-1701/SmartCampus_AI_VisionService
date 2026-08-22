@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN addgroup --system coregroup && adduser --system --ingroup coregroup --home /app coreuser
+
+RUN pip install --no-cache-dir fastapi uvicorn pydantic
+
+COPY src/side_mocks/ ./side_mocks/
+
+RUN chown -R coreuser:coregroup /app
+USER coreuser
+
+EXPOSE 4012
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4012/health', timeout=3).read()" || exit 1
+
+CMD ["uvicorn", "side_mocks.core_business:app", "--host", "0.0.0.0", "--port", "4012"]
