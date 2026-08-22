@@ -1,0 +1,36 @@
+# Python / virtualenv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.Python
+
+# Node
+node_modules/
+
+# Secrets (chỉ .env.example được commit)
+.env
+.env.*
+!.env.example
+
+# Reports / logs
+reports/*.xml
+reports/*.html
+reports/*.json
+!reports/.gitkeep
+*.log
+prism.log
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Cache / test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+dist/
+build/
