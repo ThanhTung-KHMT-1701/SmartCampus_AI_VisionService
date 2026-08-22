@@ -1,0 +1,23 @@
+FROM node:20-slim AS builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY src/ ./src/
+
+FROM node:20-slim AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+COPY --from=builder /app /app
+
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK CMD node -e "fetch('http://127.0.0.1:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "src/server.js"]
