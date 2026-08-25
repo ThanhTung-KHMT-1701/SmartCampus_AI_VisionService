@@ -12,3 +12,4 @@ torch==2.3.1+cpu
 torchvision==0.18.1+cpu
 numpy==1.26.4
 pillow==10.4.0
+mysql-connector-python>=8.3,<9

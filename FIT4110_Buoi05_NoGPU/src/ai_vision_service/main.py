@@ -2,14 +2,15 @@
 
 Stack:
   - FastAPI (REST) — kế thừa từ Buổi 04
-  - SQLite-backed store (thay cho in-memory) — yêu cầu persistence của Buổi 05
-  - YOLOv8 inference adapter — gọi container ai-yolo-service hoặc fallback
+  - MySQL 8.0 persistence (Buổi 05 NoGPU) — thay SQLite
+  - YOLOv8 inference adapter — chạy in-process
   - Auth Bearer — giữ nguyên từ Buổi 02/03/04
   - /ready endpoint — dùng cho docker-compose readiness check
 """
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -36,7 +37,7 @@ from .schemas import (
     ProblemDetails,
     ReadinessStatus,
 )
-from .store import VisionStore
+from . import db
 from . import yolo_adapter
 from . import face_adapter
 
@@ -57,8 +58,6 @@ app = FastAPI(
         "và docker-compose readiness."
     ),
 )
-
-store = VisionStore()
 
 
 def _now_iso() -> str:
@@ -153,14 +152,14 @@ async def _probe_yolo() -> DependencyHealth:
 
 
 def _probe_db() -> DependencyHealth:
-    if store.ping():
-        stats = store.stats()
+    if db.ping():
+        stats = db.stats()
         return DependencyHealth(
-            name="sqlite",
+            name="mysql",
             status="up",
             detail=f"detections={stats['detections']}, face_matches={stats['face_matches']}",
         )
-    return DependencyHealth(name="sqlite", status="down", detail="ping failed")
+    return DependencyHealth(name="mysql", status="down", detail="ping failed")
 
 
 @app.get("/ready", response_model=ReadinessStatus, tags=["system"])
@@ -254,7 +253,21 @@ async def detect_objects(req: DetectRequest, request: Request) -> JSONResponse:
         processing_time_ms=processing_ms,
         timestamp=_now_iso(),
     )
-    store.add_detection(response)
+
+    # Lưu vào MySQL
+    try:
+        db.insert_detection(
+            detection_id=detection_id,
+            camera_id=req.camera_id,
+            detections_json=json.dumps([d.model_dump() for d in detections]),
+            risk_level=risk_level,
+            model_version=result.model_version,
+            processing_time_ms=processing_ms,
+            timestamp=db.to_mysql_datetime(response.timestamp),
+        )
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.error("Failed to save detection to MySQL: %s", exc)
+        # Không fail request — detection vẫn trả về cho client
 
     headers = {
         "X-Detection-Id": detection_id,
@@ -272,13 +285,13 @@ async def get_detection_by_id(detection_id: str, request: Request) -> DetectResp
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="detection_id phải là UUID") from exc
 
-    record = store.get_detection(detection_id)
+    record = db.get_detection(detection_id)
     if record is None:
         raise HTTPException(
             status_code=404,
             detail=f"Detection {detection_id} không tồn tại hoặc đã hết hạn",
         )
-    return record
+    return DetectResponse(**record)
 
 
 @app.get("/vision/results/recent", response_model=DetectionPage, tags=["detection"])
@@ -288,8 +301,12 @@ async def get_recent_detections(
     camera_id: str | None = Query(None, pattern=r"^[a-z0-9-]+$"),
 ) -> DetectionPage:
     _require_auth(request)
-    items, next_cursor, has_more = store.list_recent_detections(limit=limit, camera_id=camera_id)
-    return DetectionPage(items=items, nextCursor=next_cursor, hasMore=has_more)
+    items, next_cursor, has_more = db.list_recent_detections(limit=limit, camera_id=camera_id)
+    return DetectionPage(
+        items=[DetectResponse(**item) for item in items],
+        nextCursor=next_cursor,
+        hasMore=has_more,
+    )
 
 
 @app.post("/vision/face-match", response_model=FaceMatchResponse, tags=["face-match"])
@@ -356,14 +373,30 @@ async def face_match(req: FaceMatchRequest, request: Request) -> JSONResponse:
         matched=result.matched,
         confidence=result.confidence,
         threshold=req.threshold,
-        status=result.status,  # noqa: PERF401
+        status=result.status,
         message=result.message,
         model_version=result.model_version,
         processing_time_ms=processing_ms,
         trace_id=req.trace_id,
         timestamp=_now_iso(),
     )
-    store.add_face_match(response)
+
+    # Lưu vào MySQL
+    try:
+        db.insert_face_match(
+            match_id=response.match_id,
+            matched=response.matched,
+            confidence=response.confidence,
+            threshold=response.threshold,
+            status=response.status,
+            message=response.message,
+            model_version=response.model_version,
+            processing_time_ms=response.processing_time_ms,
+            trace_id=response.trace_id,
+            timestamp=db.to_mysql_datetime(response.timestamp),
+        )
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.error("Failed to save face match to MySQL: %s", exc)
 
     headers = {"X-Trace-Id": req.trace_id or ""}
     return JSONResponse(

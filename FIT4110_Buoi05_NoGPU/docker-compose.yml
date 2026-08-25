@@ -1,6 +1,29 @@
 name: smartcampus-vision-lab05
 
 services:
+  # ── MySQL 8.0 Database ──────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: fit4110-mysql-lab05
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_vision_db}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - team-internal
+
   # ── AI Vision FastAPI — YOLO chạy in-process, port 8000 ra host ─────────
   ai-vision:
     build:
@@ -16,11 +39,25 @@ services:
       APP_PORT: "8000"
       AI_VISION_AUTH_TOKEN: ${AI_VISION_AUTH_TOKEN:-local-dev-token-vision}
       SERVICE_VERSION: "0.5.0"
+      # MySQL connection
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_vision_db}
     ports:
       - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - team-internal
-      - class-net
 
 networks:
   team-internal:
@@ -29,3 +66,6 @@ networks:
   class-net:
     name: smartcampus-class-net
     external: true
+
+volumes:
+  mysql_data:
