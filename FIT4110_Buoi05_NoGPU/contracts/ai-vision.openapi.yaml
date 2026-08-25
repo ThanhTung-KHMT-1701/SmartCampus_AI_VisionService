@@ -1,0 +1,481 @@
+openapi: 3.1.0
+info:
+  title: AI Vision Service — Smart Campus Operations Platform (Lab 05)
+  version: 0.5.0
+  description: |
+    Hợp đồng REST cho AI Vision Service (team-vision) — mở rộng từ Buổi 02/03/04
+    để phục vụ Buổi 05 (docker-compose readiness).
+
+    Bổ sung so với Lab 04:
+      - `GET /ready` — readiness check tổng hợp (SQLite + YOLO container)
+      - `GET /vision/ready` — alias cho ngữ nghĩa
+      - Bổ sung header `X-Yolo-Mode` phản hồi từ API cho biết đang chạy
+        inproc / remote / stub.
+
+    YOLO Service là một service FastAPI riêng (port 9000) chạy Ultralytics
+    YOLOv8n trên CPU; nó nằm ngoài hợp đồng này và chỉ được tham chiếu
+    nội bộ giữa 2 container trong cùng `team-internal`.
+  contact:
+    name: AI Vision Team (A4/B4)
+    email: ai-vision@smart-campus.edu.vn
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local FastAPI (uvicorn) — dùng cho dev đơn lẻ
+  - url: http://ai-vision:8000
+    description: Container ai-vision trong docker-compose
+  - url: https://api.campus.local/v1
+    description: Production API gateway
+
+tags:
+  - name: system
+    description: Liveness & readiness
+  - name: detection
+    description: Phát hiện đối tượng trong ảnh
+  - name: face-match
+    description: So khớp khuôn mặt
+  - name: model
+    description: Quản lý thông tin model AI
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness — service còn chạy
+      tags: [system]
+      security: []
+      responses:
+        '200':
+          description: Service còn hoạt động
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /ready:
+    get:
+      operationId: getReady
+      summary: Readiness — kiểm tra dependency (DB, AI)
+      description: |
+        Endpoint này được docker-compose dùng để xác định khi nào `ai-vision`
+        sẵn sàng nhận traffic. Trả 200 khi mọi dependency `up`, 503 khi có
+        dependency `down`.
+      tags: [system]
+      security: []
+      responses:
+        '200':
+          description: Mọi dependency sẵn sàng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessStatus'
+        '503':
+          description: Có dependency chưa sẵn sàng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessStatus'
+
+  /vision/detect:
+    post:
+      operationId: detectObjects
+      summary: Phát hiện đối tượng (YOLOv8 CPU)
+      tags: [detection]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetectRequest'
+      responses:
+        '200':
+          description: Detection thành công
+          headers:
+            X-Detection-Id:
+              schema:
+                type: string
+                format: uuid
+            X-Processing-Time-Ms:
+              schema:
+                type: integer
+            X-Yolo-Mode:
+              description: inproc | remote | stub
+              schema:
+                type: string
+                enum: [inproc, remote, stub]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /vision/detections/{detectionId}:
+    get:
+      operationId: getDetectionById
+      summary: Lấy detection theo ID
+      tags: [detection]
+      parameters:
+        - $ref: '#/components/parameters/DetectionId'
+      responses:
+        '200':
+          description: Chi tiết detection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vision/results/recent:
+    get:
+      operationId: getRecentDetections
+      summary: Danh sách detection gần đây
+      tags: [detection]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - name: camera_id
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[a-z0-9-]+$'
+      responses:
+        '200':
+          description: Trang kết quả
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectionPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /vision/face-match:
+    post:
+      operationId: faceMatch
+      summary: So khớp khuôn mặt
+      tags: [face-match]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FaceMatchRequest'
+      responses:
+        '200':
+          description: Kết quả so khớp
+          headers:
+            X-Trace-Id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceMatchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /vision/models/info:
+    get:
+      operationId: getModelInfo
+      summary: Thông tin model AI
+      tags: [model]
+      responses:
+        '200':
+          description: Thông tin model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    DetectionId:
+      name: detectionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    Unauthorized:
+      description: Thiếu hoặc sai Bearer token
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Không tìm thấy resource
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnprocessableEntity:
+      description: Payload không hợp lệ
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      required: [status, service, version, modelLoaded, time]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+        version:
+          type: string
+        modelLoaded:
+          type: boolean
+        modelVersion:
+          type: [string, 'null']
+        time:
+          type: string
+          format: date-time
+
+    DependencyHealth:
+      type: object
+      additionalProperties: false
+      required: [name, status]
+      properties:
+        name:
+          type: string
+          example: ai-yolo
+        status:
+          type: string
+          enum: [up, down, degraded]
+        detail:
+          type: [string, 'null']
+
+    ReadinessStatus:
+      type: object
+      additionalProperties: false
+      required: [status, service, version, dependencies, time]
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+        service:
+          type: string
+        version:
+          type: string
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/DependencyHealth'
+        time:
+          type: string
+          format: date-time
+
+    BoundingBox:
+      type: object
+      additionalProperties: false
+      required: [x, y, width, height]
+      properties:
+        x: {type: integer, minimum: 0}
+        y: {type: integer, minimum: 0}
+        width: {type: integer, minimum: 1}
+        height: {type: integer, minimum: 1}
+
+    Detection:
+      type: object
+      additionalProperties: false
+      required: [label, confidence, bbox]
+      properties:
+        label: {type: string}
+        confidence: {type: number, minimum: 0.0, maximum: 1.0}
+        bbox:
+          $ref: '#/components/schemas/BoundingBox'
+        class_id:
+          type: [integer, 'null']
+
+    DetectRequest:
+      type: object
+      additionalProperties: false
+      required: [camera_id, timestamp]
+      properties:
+        camera_id:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          minLength: 1
+          maxLength: 80
+        image_url:
+          type: [string, 'null']
+          format: uri
+        image_base64:
+          type: [string, 'null']
+        timestamp:
+          type: string
+          format: date-time
+        confidence_threshold:
+          type: [number, 'null']
+          minimum: 0.0
+          maximum: 1.0
+        model_version:
+          type: [string, 'null']
+      anyOf:
+        - required: [image_url]
+          not: {required: [image_base64]}
+        - required: [image_base64]
+          not: {required: [image_url]}
+
+    DetectResponse:
+      type: object
+      additionalProperties: false
+      required: [detection_id, camera_id, detections, risk_level, model_version, processing_time_ms, timestamp]
+      properties:
+        detection_id: {type: string, format: uuid}
+        camera_id: {type: string}
+        detections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Detection'
+        risk_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        model_version: {type: string}
+        processing_time_ms: {type: integer, minimum: 0}
+        timestamp: {type: string, format: date-time}
+
+    DetectionPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/DetectResponse'
+        nextCursor:
+          type: [string, 'null']
+        hasMore: {type: boolean}
+
+    FaceMatchRequest:
+      type: object
+      additionalProperties: false
+      required: [timestamp]
+      properties:
+        image_url: {type: [string, 'null'], format: uri}
+        image_base64: {type: [string, 'null']}
+        reference_image_url: {type: [string, 'null'], format: uri}
+        reference_image_base64: {type: [string, 'null']}
+        threshold: {type: number, minimum: 0.0, maximum: 1.0, default: 0.7}
+        trace_id:
+          type: [string, 'null']
+          maxLength: 100
+        timestamp: {type: string, format: date-time}
+      anyOf:
+        - required: [image_url, reference_image_url]
+          not: {required: [image_base64, reference_image_base64]}
+        - required: [image_base64, reference_image_base64]
+          not: {required: [image_url, reference_image_url]}
+
+    FaceMatchResponse:
+      type: object
+      additionalProperties: false
+      required: [match_id, matched, confidence, threshold, status, model_version, processing_time_ms, trace_id, timestamp]
+      properties:
+        match_id: {type: string, format: uuid}
+        matched: {type: boolean}
+        confidence: {type: number, minimum: 0.0, maximum: 1.0}
+        threshold: {type: number, minimum: 0.0, maximum: 1.0}
+        status:
+          type: string
+          enum: [MATCHED, NOT_MATCHED, LOW_CONFIDENCE, ERROR]
+        message:
+          type: [string, 'null']
+          maxLength: 500
+        model_version: {type: string}
+        processing_time_ms: {type: integer, minimum: 0}
+        trace_id: {type: [string, 'null']}
+        timestamp: {type: string, format: date-time}
+
+    ModelClass:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: [string, 'null']}
+
+    ModelInfo:
+      type: object
+      additionalProperties: false
+      required: [model_id, model_type, framework, framework_version, classes, input_size, status]
+      properties:
+        model_id: {type: string}
+        model_type:
+          type: string
+          enum: [object_detection, face_recognition, anomaly_detection]
+        framework: {type: string}
+        framework_version: {type: string}
+        classes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelClass'
+        confidence_threshold_default:
+          type: [number, 'null']
+          minimum: 0.0
+          maximum: 1.0
+        input_size: {type: integer}
+        accuracy_map:
+          type: [number, 'null']
+          minimum: 0.0
+          maximum: 1.0
+        inference_time_ms_avg: {type: integer}
+        last_updated: {type: string, format: date-time}
+        status:
+          type: string
+          enum: [ACTIVE, LOADING, ERROR, DEPRECATED]
+
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status]
+      properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer, minimum: 400, maximum: 599}
+        detail: {type: [string, 'null']}
+        instance: {type: [string, 'null']}
+        errors:
+          type: array
+          items:
+            type: object

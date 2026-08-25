@@ -1,0 +1,1 @@
+yolo predict: mode=stub dets=2 ms=15

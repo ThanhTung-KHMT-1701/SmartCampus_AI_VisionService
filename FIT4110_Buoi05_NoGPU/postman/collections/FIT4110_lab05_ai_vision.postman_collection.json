@@ -1,0 +1,376 @@
+{
+  "info": {
+    "name": "FIT4110 Lab 05 - AI Vision (NoGPU YOLOv8, Compose)",
+    "_postman_id": "fit4110-lab05-vision-collection",
+    "description": "Bộ test cho AI Vision Service trong stack docker-compose Lab 05. Bao gồm liveness, readiness, functional, auth, negative, boundary và smoke sang YOLO service.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01_System_Liveness_Readiness",
+      "item": [
+        {
+          "name": "GET /health (no auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {"raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('status=ok', () => pm.expect(body.status).to.eql('ok'));",
+                  "pm.test('service=ai-vision', () => pm.expect(body.service).to.eql('ai-vision'));",
+                  "pm.test('modelLoaded=true', () => pm.expect(body.modelLoaded).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ready (deps up)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {"raw": "{{baseUrl}}/ready", "host": ["{{baseUrl}}"], "path": ["ready"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status in [200, 503]', () => pm.expect([200,503]).to.include(pm.response.code));",
+                  "const body = pm.response.json();",
+                  "pm.test('has dependencies array', () => pm.expect(body.dependencies).to.be.an('array'));",
+                  "pm.test('ai-yolo present', () => pm.expect(body.dependencies.map(d => d.name)).to.include('ai-yolo'));",
+                  "pm.test('sqlite present', () => pm.expect(body.dependencies.map(d => d.name)).to.include('sqlite'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET YOLO /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {"raw": "{{yoloBaseUrl}}/health", "host": ["{{yoloBaseUrl}}"], "path": ["health"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('status=ok', () => pm.expect(body.status).to.eql('ok'));",
+                  "pm.test('service=ai-yolo', () => pm.expect(body.service).to.eql('ai-yolo'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Functional",
+      "item": [
+        {
+          "name": "POST /vision/detect (URL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"camera_id\":\"cam-gate-01\",\"image_url\":\"http://storage.campus.local/images/frame-001.jpg\",\"timestamp\":\"2026-08-22T07:30:00Z\",\"confidence_threshold\":0.5}"
+            },
+            "url": {"raw": "{{baseUrl}}/vision/detect", "host": ["{{baseUrl}}"], "path": ["vision","detect"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('has detection_id (uuid)', () => pm.expect(body.detection_id).to.match(/^[0-9a-f-]{36}$/));",
+                  "pm.test('risk_level in enum', () => pm.expect(['LOW','MEDIUM','HIGH','CRITICAL']).to.include(body.risk_level));",
+                  "pm.test('X-Yolo-Mode header present', () => pm.expect(pm.response.headers.get('X-Yolo-Mode')).to.be.oneOf(['inproc','remote','stub']));",
+                  "pm.collectionVariables.set('lastDetectionId', body.detection_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{id}",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+            "url": {"raw": "{{baseUrl}}/vision/detections/{{lastDetectionId}}", "host": ["{{baseUrl}}"], "path": ["vision","detections","{{lastDetectionId}}"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('detection_id matches', () => pm.expect(body.detection_id).to.eql(pm.collectionVariables.get('lastDetectionId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+            "url": {"raw": "{{baseUrl}}/vision/results/recent?limit=5", "host": ["{{baseUrl}}"], "path": ["vision","results","recent"], "query": [{"key": "limit", "value": "5"}]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('has items array', () => pm.expect(body.items).to.be.an('array'));",
+                  "pm.test('hasMore boolean', () => pm.expect(body.hasMore).to.be.a('boolean'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/face-match",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"image_url\":\"http://storage.campus.local/images/face-detected-001.jpg\",\"reference_image_url\":\"http://storage.campus.local/profiles/student-sv001.jpg\",\"threshold\":0.7,\"trace_id\":\"trace-lab05-001\",\"timestamp\":\"2026-08-22T07:30:00Z\"}"
+            },
+            "url": {"raw": "{{baseUrl}}/vision/face-match", "host": ["{{baseUrl}}"], "path": ["vision","face-match"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('status in enum', () => pm.expect(['MATCHED','NOT_MATCHED','LOW_CONFIDENCE','ERROR']).to.include(body.status));",
+                  "pm.test('confidence in [0,1]', () => pm.expect(body.confidence).to.be.within(0,1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/models/info",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+            "url": {"raw": "{{baseUrl}}/vision/models/info", "host": ["{{baseUrl}}"], "path": ["vision","models","info"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('model_type=object_detection', () => pm.expect(body.model_type).to.eql('object_detection'));",
+                  "pm.test('status=ACTIVE', () => pm.expect(body.status).to.eql('ACTIVE'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03_Auth",
+      "item": [
+        {
+          "name": "POST /vision/detect missing token",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"camera_id\":\"cam-gate-01\",\"image_url\":\"http://x/y.jpg\",\"timestamp\":\"2026-08-22T07:30:00Z\"}"},
+            "url": {"raw": "{{baseUrl}}/vision/detect", "host": ["{{baseUrl}}"], "path": ["vision","detect"]}
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 401', () => pm.response.to.have.status(401));"]}}
+          ]
+        },
+        {
+          "name": "POST /vision/detect wrong token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer wrong-token"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\"camera_id\":\"cam-gate-01\",\"image_url\":\"http://x/y.jpg\",\"timestamp\":\"2026-08-22T07:30:00Z\"}"},
+            "url": {"raw": "{{baseUrl}}/vision/detect", "host": ["{{baseUrl}}"], "path": ["vision","detect"]}
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 401', () => pm.response.to.have.status(401));"]}}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04_Negative",
+      "item": [
+        {
+          "name": "POST /vision/detect 422 mutually exclusive",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\"camera_id\":\"cam-gate-01\",\"image_url\":\"x\",\"image_base64\":\"y\",\"timestamp\":\"2026-08-22T07:30:00Z\"}"},
+            "url": {"raw": "{{baseUrl}}/vision/detect", "host": ["{{baseUrl}}"], "path": ["vision","detect"]}
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 422', () => pm.response.to.have.status(422));"]}}
+          ]
+        },
+        {
+          "name": "POST /vision/detect 422 missing timestamp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\"camera_id\":\"cam-gate-01\",\"image_url\":\"x\"}"},
+            "url": {"raw": "{{baseUrl}}/vision/detect", "host": ["{{baseUrl}}"], "path": ["vision","detect"]}
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 422', () => pm.response.to.have.status(422));"]}}
+          ]
+        },
+        {
+          "name": "GET /vision/detections/bad-id 422",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+            "url": {"raw": "{{baseUrl}}/vision/detections/not-a-uuid", "host": ["{{baseUrl}}"], "path": ["vision","detections","not-a-uuid"]}
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 422', () => pm.response.to.have.status(422));"]}}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05_Boundary",
+      "item": [
+        {
+          "name": "POST detect threshold=0.0 (boundary low)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\"camera_id\":\"cam-gate-01\",\"image_url\":\"http://x/y.jpg\",\"timestamp\":\"2026-08-22T07:30:00Z\",\"confidence_threshold\":0.0}"},
+            "url": {"raw": "{{baseUrl}}/vision/detect", "host": ["{{baseUrl}}"], "path": ["vision","detect"]}
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "POST detect threshold=1.0 (boundary high)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\"camera_id\":\"cam-gate-01\",\"image_url\":\"http://x/y.jpg\",\"timestamp\":\"2026-08-22T07:30:00Z\",\"confidence_threshold\":1.0}"},
+            "url": {"raw": "{{baseUrl}}/vision/detect", "host": ["{{baseUrl}}"], "path": ["vision","detect"]}
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "POST detect threshold=1.5 (out of range)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\"camera_id\":\"cam-gate-01\",\"image_url\":\"http://x/y.jpg\",\"timestamp\":\"2026-08-22T07:30:00Z\",\"confidence_threshold\":1.5}"},
+            "url": {"raw": "{{baseUrl}}/vision/detect", "host": ["{{baseUrl}}"], "path": ["vision","detect"]}
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 422', () => pm.response.to.have.status(422));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "06_Compose_Readiness",
+      "item": [
+        {
+          "name": "YOLO /predict (inproc/stub)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"image_base64\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\",\"confidence_threshold\":0.4}"},
+            "url": {"raw": "{{yoloBaseUrl}}/predict", "host": ["{{yoloBaseUrl}}"], "path": ["predict"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('mode in {inproc, stub}', () => pm.expect(['inproc','stub']).to.include(body.mode));",
+                  "pm.test('detections is array', () => pm.expect(body.detections).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "YOLO /predict 422 XOR",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"image_url\":\"x\",\"image_base64\":\"y\",\"confidence_threshold\":0.4}"},
+            "url": {"raw": "{{yoloBaseUrl}}/predict", "host": ["{{yoloBaseUrl}}"], "path": ["predict"]}
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status 422', () => pm.response.to.have.status(422));"]}}]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {"key": "lastDetectionId", "value": ""}
+  ]
+}

@@ -1,0 +1,26 @@
+======================================================================
+Case A: 2 ß║únh KH├üC NHAU (expect NOT_MATCHED)
+  HTTP 200
+  matched=True  confidence=0.93  status=MATCHED  proc_ms=88
+  message='Khu├┤n mß║╖t khß╗¢p vß╗¢i ─æß╗Ö tin cß║¡y cao'
+
+Case B: 2 ß║únh GIß╗ÉNG NHAU (expect MATCHED)
+  HTTP 200
+  matched=True  confidence=0.93  status=MATCHED  proc_ms=88
+  message='Khu├┤n mß║╖t khß╗¢p vß╗¢i ─æß╗Ö tin cß║¡y cao'
+
+Case C: input ß║únh trß║»ng 1x1 (no face)
+  HTTP 200
+  matched=False  confidence=0.45  status=NOT_MATCHED  proc_ms=88
+  message='Khu├┤n mß║╖t kh├┤ng khß╗¢p, confidence thß║Ñp h╞ín ng╞░ß╗íng'
+
+Case D: URL kh├┤ng phß║úi URI (abc) - sai schema
+  HTTP 422
+  - image_url: value_error: Value error, image_url phß║úi l├á URL tuyß╗çt ─æß╗æi bß║»t ─æß║ºu bß║▒ng http:// hoß║╖c https://
+  - reference_image_url: value_error: Value error, image_url phß║úi l├á URL tuyß╗çt ─æß╗æi bß║»t ─æß║ºu bß║▒ng http:// hoß║╖c https://
+
+Case E: URL thß║¡t nh╞░ng trß╗Å ─æß║┐n ß║únh kh├┤ng c├│ khu├┤n mß║╖t
+  HTTP 200
+  matched=True  confidence=0.93  status=MATCHED  proc_ms=88
+  message='Khu├┤n mß║╖t khß╗¢p vß╗¢i ─æß╗Ö tin cß║¡y cao'
+

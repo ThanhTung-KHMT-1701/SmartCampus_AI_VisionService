@@ -1,0 +1,44 @@
+vision/detect: 200
+{
+  "detection_id": "dd2e55ae-eeb6-4158-90dd-a1338c22c569",
+  "camera_id": "cam-test",
+  "detections": [
+    {
+      "label": "handbag",
+      "confidence": 0.68,
+      "bbox": {
+        "x": 61,
+        "y": 83,
+        "width": 153,
+        "height": 143
+      },
+      "class_id": 26
+    },
+    {
+      "label": "bottle",
+      "confidence": 0.84,
+      "bbox": {
+        "x": 221,
+        "y": 176,
+        "width": 169,
+        "height": 129
+      },
+      "class_id": 39
+    },
+    {
+      "label": "backpack",
+      "confidence": 0.55,
+      "bbox": {
+        "x": 212,
+        "y": 113,
+        "width": 100,
+        "height": 108
+      },
+      "class_id": 24
+    }
+  ],
+  "risk_level": "MEDIUM",
+  "model_version": "yolov8n-cpu-v1.0",
+  "processing_time_ms": 85,
+  "timestamp": "2026-08-25T00:40:51Z"
+}

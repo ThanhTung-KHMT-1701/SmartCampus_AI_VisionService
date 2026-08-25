@@ -1,0 +1,7 @@
+CONTAINER ID   IMAGE                              COMMAND                  CREATED          STATUS                     PORTS                                         NAMES
+e3fa0de0cf1c   fit4110/ai-yolo:lab05              "sh -c 'uvicorn ai_yΓÇª"   2 minutes ago    Up 2 minutes (healthy)     0.0.0.0:9000->9000/tcp, [::]:9000->9000/tcp   fit4110-ai-yolo-lab05
+2c6c23907e89   fit4110/ai-vision:lab05            "sh -c 'uvicorn ai_vΓÇª"   36 minutes ago   Up 19 minutes (healthy)    0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp   fit4110-ai-vision-lab05
+8359d14bb915   fit4110/vision-db:lab05            "docker-entrypoint.sΓÇª"   36 minutes ago   Up 19 minutes (healthy)    5432/tcp                                      fit4110-vision-db-lab05
+d43de9016c32   fit4110/core-business-mock:lab04   "sh -c 'uvicorn sideΓÇª"   2 hours ago      Up 19 minutes (healthy)    0.0.0.0:4012->4012/tcp, [::]:4012->4012/tcp   fit4110-core-mock-lab04
+a8c64c6a36df   fit4110/camera-stream-mock:lab04   "sh -c 'uvicorn sideΓÇª"   2 hours ago      Up 19 minutes (healthy)    0.0.0.0:4014->4014/tcp, [::]:4014->4014/tcp   fit4110-camera-mock-lab04
+51f3bb24f5c7   fit4110/ai-vision:lab04            "sh -c 'uvicorn ai_vΓÇª"   2 hours ago      Exited (137) 2 hours ago                                                 fit4110-ai-vision-lab04

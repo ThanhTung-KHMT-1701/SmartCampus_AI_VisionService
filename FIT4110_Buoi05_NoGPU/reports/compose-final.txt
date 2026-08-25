@@ -1,0 +1,4 @@
+NAME                      IMAGE                     COMMAND                  SERVICE     CREATED          STATUS                    PORTS
+fit4110-ai-vision-lab05   fit4110/ai-vision:lab05   "sh -c 'uvicorn ai_vΓÇª"   ai-vision   38 minutes ago   Up 21 minutes (healthy)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+fit4110-ai-yolo-lab05     fit4110/ai-yolo:lab05     "sh -c 'uvicorn ai_yΓÇª"   ai-yolo     3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:9000->9000/tcp, [::]:9000->9000/tcp
+fit4110-vision-db-lab05   fit4110/vision-db:lab05   "docker-entrypoint.sΓÇª"   vision-db   38 minutes ago   Up 21 minutes (healthy)   5432/tcp

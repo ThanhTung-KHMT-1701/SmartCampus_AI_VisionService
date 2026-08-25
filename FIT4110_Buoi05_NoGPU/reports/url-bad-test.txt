@@ -1,0 +1,20 @@
+
+=== URL ─É├ÜNG (c├│ .png) ===
+   URL: https://png.pngtree.com/png-vector/20250430/ourmid/pngtree-sleek-white-car-modern-sedan-png-image_16155268.png
+   HTTP: 200
+   detections: 1
+     - car          conf=0.9196
+
+=== URL SAI (x├│a sß╗æ 8) ===
+   URL: https://png.pngtree.com/png-vector/20250430/ourmid/pngtree-sleek-white-car-modern-sedan-png-image_1615526.png
+   HTTP: 200
+   detections: 2
+     - tv           conf=0.7
+     - bus          conf=0.86
+
+=== URL gß╗æc trong test (c├│ ?) ===
+   URL: https://png.pngtree.com/png-vector/20250430/ourmid/pngtree-sleek-white-car-modern-sedan-png-image_1615526.png
+   HTTP: 200
+   detections: 2
+     - tv           conf=0.7
+     - bus          conf=0.86

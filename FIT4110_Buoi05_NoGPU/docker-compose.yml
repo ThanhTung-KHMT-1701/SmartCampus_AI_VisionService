@@ -1,0 +1,31 @@
+name: smartcampus-vision-lab05
+
+services:
+  # ── AI Vision FastAPI — YOLO chạy in-process, port 8000 ra host ─────────
+  ai-vision:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fit4110/ai-vision:lab05
+    container_name: fit4110-ai-vision-lab05
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8000"
+      AI_VISION_AUTH_TOKEN: ${AI_VISION_AUTH_TOKEN:-local-dev-token-vision}
+      SERVICE_VERSION: "0.5.0"
+    ports:
+      - "8000:8000"
+    networks:
+      - team-internal
+      - class-net
+
+networks:
+  team-internal:
+    name: smartcampus-vision-team-internal
+    driver: bridge
+  class-net:
+    name: smartcampus-class-net
+    external: true

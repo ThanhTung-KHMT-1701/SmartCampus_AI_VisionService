@@ -1,0 +1,73 @@
+# syntax=docker/dockerfile:1.7
+# AI YOLOv8 Service (CPU) — FIT4110 Buổi 05.
+# Dùng ultralytics pretrained yolov8n.pt (không huấn luyện).
+# pip lấy torch CPU wheel từ https://download.pytorch.org/whl/cpu
+#    → tránh torch CUDA nặng 779 MB.
+# Pretrained weights yolov8n.pt (~6 MB) tải trong builder và bake vào image
+#    → /app không cần Internet khi container chạy.
+
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
+
+WORKDIR /build
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python -m venv /opt/venv
+
+COPY requirements-yolo.txt ./requirements.txt
+RUN /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# Tải pretrained yolov8n.pt (~6 MB) ngay tại build time — nằm trong layer cache.
+# Đặt trong /build để COPY sang runtime stage.
+RUN /opt/venv/bin/python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" \
+    && ls -la yolov8n.pt
+
+
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
+
+ENV APP_HOST=0.0.0.0 \
+    APP_PORT=8000 \
+    PYTHONPATH=/app/src \
+    SERVICE_NAME=ai-yolo \
+    SERVICE_VERSION=0.5.0 \
+    YOLO_MODEL_NAME=yolov8n \
+    YOLO_INPUT_SIZE=640 \
+    YOLO_CONFIDENCE_DEFAULT=0.5 \
+    YOLO_WEIGHTS_PATH=/app/yolov8n.pt \
+    LOG_LEVEL=INFO
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system appgroup \
+    && adduser --system --ingroup appgroup --home /app appuser
+
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /build/yolov8n.pt /app/yolov8n.pt
+COPY src/ai_yolo_service ./src/ai_yolo_service
+COPY src/__init__.py ./src/__init__.py
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+
+CMD ["sh", "-c", "uvicorn ai_yolo_service.main:app --host ${APP_HOST} --port ${APP_PORT} --app-dir /app/src"]

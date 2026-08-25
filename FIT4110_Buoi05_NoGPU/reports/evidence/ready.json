@@ -1,0 +1,18 @@
+{
+  "status": "ready",
+  "service": "ai-vision",
+  "version": "0.5.0",
+  "dependencies": [
+    {
+      "name": "sqlite",
+      "status": "up",
+      "detail": "detections=0, face_matches=0"
+    },
+    {
+      "name": "ai-yolo",
+      "status": "up",
+      "detail": "version=0.5.0, mode=stub"
+    }
+  ],
+  "time": "2026-08-22T02:44:49Z"
+}

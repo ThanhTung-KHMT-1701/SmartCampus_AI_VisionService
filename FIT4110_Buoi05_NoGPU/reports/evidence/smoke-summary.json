@@ -1,0 +1,92 @@
+[
+  {
+    "name": "health-api",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "health-yolo",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "ready",
+    "status": 200,
+    "note": "deps=sqlite=up, ai-yolo=up"
+  },
+  {
+    "name": "detect-url",
+    "status": 200,
+    "note": "id=3a64a322.. risk=MEDIUM dets=2"
+  },
+  {
+    "name": "detect-by-id",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "detect-recent",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "face-match",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "models-info",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "yolo-predict",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "auth-missing",
+    "status": 422,
+    "note": ""
+  },
+  {
+    "name": "auth-wrong",
+    "status": 422,
+    "note": ""
+  },
+  {
+    "name": "neg-mutex",
+    "status": 422,
+    "note": ""
+  },
+  {
+    "name": "neg-no-timestamp",
+    "status": 422,
+    "note": ""
+  },
+  {
+    "name": "neg-bad-uuid",
+    "status": 422,
+    "note": ""
+  },
+  {
+    "name": "bnd-thr-0.0",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "bnd-thr-1.0",
+    "status": 200,
+    "note": ""
+  },
+  {
+    "name": "bnd-thr-1.5",
+    "status": 422,
+    "note": ""
+  },
+  {
+    "name": "yolo-mutex",
+    "status": 422,
+    "note": ""
+  }
+]

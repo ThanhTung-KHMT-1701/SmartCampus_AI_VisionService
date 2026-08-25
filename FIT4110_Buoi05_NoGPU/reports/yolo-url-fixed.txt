@@ -1,0 +1,20 @@
+status: 200
+{
+  "model_id": "yolov8n-cpu-0.5.0",
+  "model_version": "yolov8n-cpu-v1.0",
+  "inference_time_ms": 2669,
+  "mode": "inproc",
+  "detections": [
+    {
+      "label": "motorcycle",
+      "confidence": 0.8089,
+      "class_id": 3,
+      "bbox": {
+        "x": 83,
+        "y": 14,
+        "width": 588,
+        "height": 560
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+vision/detect: 200
+{
+  "detection_id": "6197bb30-6366-46be-bb32-d5aa4d66c228",
+  "camera_id": "cam-test",
+  "detections": [
+    {
+      "label": "motorcycle",
+      "confidence": 0.8089,
+      "bbox": {
+        "x": 83,
+        "y": 14,
+        "width": 588,
+        "height": 560
+      },
+      "class_id": 3
+    }
+  ],
+  "risk_level": "LOW",
+  "model_version": "yolov8n-cpu-v1.0",
+  "processing_time_ms": 1224,
+  "timestamp": "2026-08-25T00:43:41Z"
+}

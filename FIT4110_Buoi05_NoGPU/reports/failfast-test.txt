@@ -1,0 +1,12 @@
+=== Case 1: URL BAD (x├│a sß╗æ 8) ΓÇö phß║úi trß║ú lß╗ùi 4xx/5xx ===
+HTTP: 502
+Body: {"type":"https://ai-vision.campus.local/errors/502","title":"YOLO error: image_url kh├┤ng truy cß║¡p ─æ╞░ß╗úc: HTTP 403","status":502,"detail":"YOLO error: image_url kh├┤ng truy cß║¡p ─æ╞░ß╗úc: HTTP 403"}
+
+=== Case 2: URL GOOD ΓÇö phß║úi trß║ú car thß║¡t ===
+HTTP: 200
+detections: 1
+  - car          conf=0.9196
+
+=== Case 3: URL BAD gß╗ìi thß║│ng ai-yolo ===
+HTTP: 502
+Body: {"detail":"image_url kh├┤ng truy cß║¡p ─æ╞░ß╗úc: HTTP 403"}

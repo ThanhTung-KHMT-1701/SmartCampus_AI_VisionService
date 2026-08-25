@@ -1,0 +1,10 @@
+
+missing-token:  -> 
+wrong-token:    -> 
+422-mutex:      -> 
+422-no-time:    -> 
+422-bad-uuid:   -> {"type":"https://ai-vision.campus.local/errors/422","title":"detection_id phß║úi l├á UUID","status":422,"detail":"detection_id phß║úi l├á UUID"}
+thr-0.0:        -> 
+thr-1.0:        -> 
+thr-1.5:        -> 
+yolo-422-mux:   -> 

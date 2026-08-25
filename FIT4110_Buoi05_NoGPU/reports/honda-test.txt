@@ -1,0 +1,5 @@
+Image: 50167 bytes, first bytes: ffd8ffe000104a46494600010100000100010000
+yolo predict: 200
+mode=inproc inference_ms=2309 dets=1
+  - motorcycle           cls= 3  conf=0.81  bbox={'x': 83, 'y': 14, 'width': 588, 'height': 560}
+Saved overlay: reports/evidence/honda_yolo.png

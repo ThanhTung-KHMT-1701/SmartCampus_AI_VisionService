@@ -1,0 +1,6 @@
+Synthetic image: 800x450, 3510 bytes PNG
+yolo predict: 200
+mode=inproc inference_ms=95 dets=3
+  - dog                  cls=16  conf=0.72  bbox={'x': 134, 'y': 80, 'width': 77, 'height': 107}
+  - bicycle              cls= 1  conf=0.88  bbox={'x': 285, 'y': 111, 'width': 173, 'height': 99}
+  - bicycle              cls= 1  conf=0.91  bbox={'x': 230, 'y': 226, 'width': 136, 'height': 189}

@@ -1,0 +1,12 @@
+# syntax=docker/dockerfile:1.7
+# Postgres side-car dùng cho Vision Service logs (audit trail).
+# FIT4110 Buổi 05 — minh hoạ service "database" trong stack Compose.
+
+FROM postgres:16-alpine
+
+ENV POSTGRES_DB=vision \
+    POSTGRES_USER=vision \
+    POSTGRES_PASSWORD=local-dev-vision
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=5 \
+    CMD pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" || exit 1

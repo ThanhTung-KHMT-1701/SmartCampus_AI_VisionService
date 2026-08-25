@@ -1,0 +1,4 @@
+HTTP 200  elapsed=1787370797927ms
+detections=2
+  sheep 0.4293
+  horse 0.3131

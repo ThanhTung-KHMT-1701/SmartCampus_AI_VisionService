@@ -1,0 +1,26 @@
+======================================================================
+Case A: 2 ß║únh KH├üC NHAU (expect NOT_MATCHED)
+  HTTP 200
+  matched=False  confidence=0.0  status=ERROR  proc_ms=156
+  message='Kh├┤ng ph├ít hiß╗çn ─æ╞░ß╗úc khu├┤n mß║╖t ß╗ƒ ß║únh query ß╗ƒ ß║únh reference'
+
+Case B: 2 ß║únh GIß╗ÉNG NHAU (expect MATCHED)
+  HTTP 200
+  matched=False  confidence=0.0  status=ERROR  proc_ms=47
+  message='Kh├┤ng ph├ít hiß╗çn ─æ╞░ß╗úc khu├┤n mß║╖t ß╗ƒ ß║únh query ß╗ƒ ß║únh reference'
+
+Case C: input ß║únh trß║»ng 1x1 (no face)
+  HTTP 200
+  matched=False  confidence=0.0  status=ERROR  proc_ms=46
+  message='Kh├┤ng ph├ít hiß╗çn ─æ╞░ß╗úc khu├┤n mß║╖t ß╗ƒ ß║únh query ß╗ƒ ß║únh reference'
+
+Case D: URL kh├┤ng phß║úi URI (abc) - sai schema
+  HTTP 422
+  - image_url: value_error: Value error, image_url phß║úi l├á URL tuyß╗çt ─æß╗æi bß║»t ─æß║ºu bß║▒ng http:// hoß║╖c https://
+  - reference_image_url: value_error: Value error, image_url phß║úi l├á URL tuyß╗çt ─æß╗æi bß║»t ─æß║ºu bß║▒ng http:// hoß║╖c https://
+
+Case E: URL thß║¡t nh╞░ng trß╗Å ─æß║┐n ß║únh kh├┤ng c├│ khu├┤n mß║╖t
+  HTTP 200
+  matched=False  confidence=0.0  status=ERROR  proc_ms=2035
+  message='Kh├┤ng ph├ít hiß╗çn ─æ╞░ß╗úc khu├┤n mß║╖t ß╗ƒ ß║únh query ß╗ƒ ß║únh reference'
+

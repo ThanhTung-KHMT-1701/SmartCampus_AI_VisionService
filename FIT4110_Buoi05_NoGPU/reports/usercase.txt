@@ -1,0 +1,8 @@
+=== Case 1: URL sai (x├│a sß╗æ 8) ===
+HTTP: 502
+Body: {"type":"https://ai-vision.campus.local/errors/502","title":"YOLO error: image_url kh├┤ng truy cß║¡p ─æ╞░ß╗úc: HTTP 403","status":502,"detail":"YOLO error: image_url kh├┤ng truy cß║¡p ─æ╞░ß╗úc: HTTP 403"}
+
+=== Case 2: URL ─É├ÜNG ===
+HTTP: 200
+detections: 1
+  car 0.9196

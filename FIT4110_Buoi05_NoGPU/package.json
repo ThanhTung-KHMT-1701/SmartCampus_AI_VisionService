@@ -1,0 +1,21 @@
+{
+  "name": "fit4110-lab05-vision-compose",
+  "version": "0.5.0",
+  "description": "FIT4110 Lab 05 - Docker Compose readiness cho team-vision (AI VisionService, NoGPU YOLOv8).",
+  "private": true,
+  "scripts": {
+    "mock:vision": "prism mock contracts/ai-vision.openapi.yaml --host 0.0.0.0 --port 4011",
+    "lint:openapi": "spectral lint contracts/*.yaml",
+    "test:mock": "newman run postman/collections/FIT4110_lab05_ai_vision.postman_collection.json -e postman/environments/FIT4110_lab05_ai_vision_mock.postman_environment.json -r cli,junit,htmlextra --reporter-junit-export reports/newman-lab05-mock.xml --reporter-htmlextra-export reports/newman-lab05-mock.html",
+    "test:local": "newman run postman/collections/FIT4110_lab05_ai_vision.postman_collection.json -e postman/environments/FIT4110_lab05_ai_vision_local.postman_environment.json -r cli,junit,htmlextra --reporter-junit-export reports/newman-lab05-local.xml --reporter-htmlextra-export reports/newman-lab05-local.html",
+    "test:compose": "newman run postman/collections/FIT4110_lab05_ai_vision.postman_collection.json -e postman/environments/FIT4110_lab05_ai_vision_compose.postman_environment.json -r cli,junit,htmlextra --reporter-junit-export reports/newman-lab05-compose.xml --reporter-htmlextra-export reports/newman-lab05-compose.html",
+    "serve:vision": "uvicorn ai_vision_service.main:app --app-dir src --host 0.0.0.0 --port 8000",
+    "serve:yolo": "uvicorn ai_yolo_service.main:app --app-dir src --host 0.0.0.0 --port 9000"
+  },
+  "devDependencies": {
+    "@stoplight/prism-cli": "^5.10.0",
+    "@stoplight/spectral-cli": "^6.13.1",
+    "newman": "^6.2.1",
+    "newman-reporter-htmlextra": "^1.23.1"
+  }
+}

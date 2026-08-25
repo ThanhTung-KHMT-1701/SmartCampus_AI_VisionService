@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="FIT4110 Lab 05 - AI Vision (NoGPU YOLOv8, Compose)" tests="18" time="1.152">
+  <testsuite name="01_System_Liveness_Readiness / GET /health (no auth)" id="f28b8509-8f60-421f-9c75-4e06605f29f3" timestamp="2026-08-22T02:52:20.093Z" tests="4" failures="0" errors="0" time="0.033">
+    <testcase name="status 200" time="0.033" classname="01SystemLivenessReadinessGetHealthNoAuth"/>
+    <testcase name="status=ok" time="0.033" classname="01SystemLivenessReadinessGetHealthNoAuth"/>
+    <testcase name="service=ai-vision" time="0.033" classname="01SystemLivenessReadinessGetHealthNoAuth"/>
+    <testcase name="modelLoaded=true" time="0.033" classname="01SystemLivenessReadinessGetHealthNoAuth"/>
+  </testsuite>
+  <testsuite name="01_System_Liveness_Readiness / GET /ready (deps up)" id="7d7919a5-f176-4822-96fe-89b4f26b8ff6" timestamp="2026-08-22T02:52:20.093Z" tests="4" failures="0" errors="0" time="0.252">
+    <testcase name="status in [200, 503]" time="0.252" classname="01SystemLivenessReadinessGetReadyDepsUp"/>
+    <testcase name="has dependencies array" time="0.252" classname="01SystemLivenessReadinessGetReadyDepsUp"/>
+    <testcase name="ai-yolo present" time="0.252" classname="01SystemLivenessReadinessGetReadyDepsUp"/>
+    <testcase name="sqlite present" time="0.252" classname="01SystemLivenessReadinessGetReadyDepsUp"/>
+  </testsuite>
+  <testsuite name="01_System_Liveness_Readiness / GET YOLO /health" id="dca7b4b5-ad2a-4da7-bb13-8ffb0eb16d72" timestamp="2026-08-22T02:52:20.093Z" tests="3" failures="0" errors="0" time="0.004">
+    <testcase name="status 200" time="0.004" classname="01SystemLivenessReadinessGetYoloHealth"/>
+    <testcase name="status=ok" time="0.004" classname="01SystemLivenessReadinessGetYoloHealth"/>
+    <testcase name="service=ai-yolo" time="0.004" classname="01SystemLivenessReadinessGetYoloHealth"/>
+  </testsuite>
+  <testsuite name="02_Functional / POST /vision/detect (URL)" id="69316d4f-5a87-40e7-9952-4febf709877a" timestamp="2026-08-22T02:52:20.093Z" tests="4" failures="0" errors="0" time="0.250">
+    <testcase name="status 200" time="0.250" classname="02FunctionalPostVisionDetectUrl"/>
+    <testcase name="has detection_id (uuid)" time="0.250" classname="02FunctionalPostVisionDetectUrl"/>
+    <testcase name="risk_level in enum" time="0.250" classname="02FunctionalPostVisionDetectUrl"/>
+    <testcase name="X-Yolo-Mode header present" time="0.250" classname="02FunctionalPostVisionDetectUrl"/>
+  </testsuite>
+  <testsuite name="02_Functional / GET /vision/detections/{id}" id="515ba168-cb8e-487c-af65-1ddf073c0d89" timestamp="2026-08-22T02:52:20.093Z" tests="2" failures="0" errors="0" time="0.005">
+    <testcase name="status 200" time="0.005" classname="02FunctionalGetVisionDetectionsId"/>
+    <testcase name="detection_id matches" time="0.005" classname="02FunctionalGetVisionDetectionsId"/>
+  </testsuite>
+  <testsuite name="02_Functional / GET /vision/results/recent" id="7948e025-592a-4ab0-837c-67bd96ff5210" timestamp="2026-08-22T02:52:20.093Z" tests="3" failures="0" errors="0" time="0.007">
+    <testcase name="status 200" time="0.007" classname="02FunctionalGetVisionResultsRecent"/>
+    <testcase name="has items array" time="0.007" classname="02FunctionalGetVisionResultsRecent"/>
+    <testcase name="hasMore boolean" time="0.007" classname="02FunctionalGetVisionResultsRecent"/>
+  </testsuite>
+  <testsuite name="02_Functional / POST /vision/face-match" id="6629d1ee-6cb6-4b49-a82f-2089e6dd1ae4" timestamp="2026-08-22T02:52:20.093Z" tests="3" failures="0" errors="0" time="0.008">
+    <testcase name="status 200" time="0.008" classname="02FunctionalPostVisionFaceMatch"/>
+    <testcase name="status in enum" time="0.008" classname="02FunctionalPostVisionFaceMatch"/>
+    <testcase name="confidence in [0,1]" time="0.008" classname="02FunctionalPostVisionFaceMatch"/>
+  </testsuite>
+  <testsuite name="02_Functional / GET /vision/models/info" id="54013d33-0cdc-482e-8789-0a41492d7248" timestamp="2026-08-22T02:52:20.093Z" tests="3" failures="0" errors="0" time="0.005">
+    <testcase name="status 200" time="0.005" classname="02FunctionalGetVisionModelsInfo"/>
+    <testcase name="model_type=object_detection" time="0.005" classname="02FunctionalGetVisionModelsInfo"/>
+    <testcase name="status=ACTIVE" time="0.005" classname="02FunctionalGetVisionModelsInfo"/>
+  </testsuite>
+  <testsuite name="03_Auth / POST /vision/detect missing token" id="f1f2ed81-cbcb-4256-b0ab-124707188434" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.004">
+    <testcase name="status 401" time="0.004" classname="03AuthPostVisionDetectMissingToken"/>
+  </testsuite>
+  <testsuite name="03_Auth / POST /vision/detect wrong token" id="cb2acaff-4d36-4253-b1de-55aa275a3670" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.003">
+    <testcase name="status 401" time="0.003" classname="03AuthPostVisionDetectWrongToken"/>
+  </testsuite>
+  <testsuite name="04_Negative / POST /vision/detect 422 mutually exclusive" id="771b6775-9926-4f9d-ba6d-b9cbeb950701" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.005">
+    <testcase name="status 422" time="0.005" classname="04NegativePostVisionDetect422MutuallyExclusive"/>
+  </testsuite>
+  <testsuite name="04_Negative / POST /vision/detect 422 missing timestamp" id="528d7edc-80f9-403f-aee5-2203bc9ec198" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.006">
+    <testcase name="status 422" time="0.006" classname="04NegativePostVisionDetect422MissingTimestamp"/>
+  </testsuite>
+  <testsuite name="04_Negative / GET /vision/detections/bad-id 422" id="01d42c7a-fd05-41ab-ad76-bbacc692d067" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.003">
+    <testcase name="status 422" time="0.003" classname="04NegativeGetVisionDetectionsBadId422"/>
+  </testsuite>
+  <testsuite name="05_Boundary / POST detect threshold=0.0 (boundary low)" id="9913f584-25c3-49e3-90ef-7f582736aaf8" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.279">
+    <testcase name="status 200" time="0.279" classname="05BoundaryPostDetectThreshold00BoundaryLow"/>
+  </testsuite>
+  <testsuite name="05_Boundary / POST detect threshold=1.0 (boundary high)" id="4c5c511c-c9cb-4f16-8ba0-d941d0a28cb9" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.279">
+    <testcase name="status 200" time="0.279" classname="05BoundaryPostDetectThreshold10BoundaryHigh"/>
+  </testsuite>
+  <testsuite name="05_Boundary / POST detect threshold=1.5 (out of range)" id="60cd8e48-5142-4e2a-8097-f6a6d2e13377" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.004">
+    <testcase name="status 422" time="0.004" classname="05BoundaryPostDetectThreshold15OutOfRange"/>
+  </testsuite>
+  <testsuite name="06_Compose_Readiness / YOLO /predict (inproc/stub)" id="77d19ebe-a020-4996-bfa1-0db710967fde" timestamp="2026-08-22T02:52:20.093Z" tests="3" failures="0" errors="0" time="0.002">
+    <testcase name="status 200" time="0.002" classname="06ComposeReadinessYoloPredictInprocStub"/>
+    <testcase name="mode in {inproc, stub}" time="0.002" classname="06ComposeReadinessYoloPredictInprocStub"/>
+    <testcase name="detections is array" time="0.002" classname="06ComposeReadinessYoloPredictInprocStub"/>
+  </testsuite>
+  <testsuite name="06_Compose_Readiness / YOLO /predict 422 XOR" id="8914f35c-0398-48b9-b991-8e8e6b0b60f4" timestamp="2026-08-22T02:52:20.093Z" tests="1" failures="0" errors="0" time="0.003">
+    <testcase name="status 422" time="0.003" classname="06ComposeReadinessYoloPredict422Xor"/>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+date: Sat, 22 Aug 2026 03:45:38 GMT
+server: uvicorn
+content-length: 174
+content-type: application/json
+
+{"status":"ok","service":"ai-yolo","version":"0.5.0","mode":"stub","model_loaded":false,"model_name":"yolov8n","weights_path":"(stub-fallback)","time":"2026-08-22T03:45:38Z"}

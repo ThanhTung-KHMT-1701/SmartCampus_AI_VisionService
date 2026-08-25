@@ -1,0 +1,10 @@
+{
+  "status": "ok",
+  "service": "ai-yolo",
+  "version": "0.5.0",
+  "mode": "stub",
+  "model_loaded": false,
+  "model_name": "yolov8n",
+  "weights_path": "(stub-fallback)",
+  "time": "2026-08-22T03:43:33Z"
+}

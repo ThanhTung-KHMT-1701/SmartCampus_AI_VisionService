@@ -1,0 +1,20 @@
+fit4110-ai-vision-lab05  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fit4110-ai-vision-lab05  |   File "/opt/venv/lib/python3.11/site-packages/uvicorn/importer.py", line 22, in import_from_string
+fit4110-ai-vision-lab05  |     raise exc from None
+fit4110-ai-vision-lab05  |   File "/opt/venv/lib/python3.11/site-packages/uvicorn/importer.py", line 19, in import_from_string
+fit4110-ai-vision-lab05  |     module = importlib.import_module(module_str)
+fit4110-ai-vision-lab05  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fit4110-ai-vision-lab05  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+fit4110-ai-vision-lab05  |     return _bootstrap._gcd_import(name[level:], package, level)
+fit4110-ai-vision-lab05  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fit4110-ai-vision-lab05  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+fit4110-ai-vision-lab05  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+fit4110-ai-vision-lab05  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+fit4110-ai-vision-lab05  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+fit4110-ai-vision-lab05  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+fit4110-ai-vision-lab05  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+fit4110-ai-vision-lab05  |   File "/app/src/ai_vision_service/main.py", line 41, in <module>
+fit4110-ai-vision-lab05  |     from . import face_adapter
+fit4110-ai-vision-lab05  |   File "/app/src/ai_vision_service/face_adapter.py", line 23, in <module>
+fit4110-ai-vision-lab05  |     import numpy as np
+fit4110-ai-vision-lab05  | ModuleNotFoundError: No module named 'numpy'

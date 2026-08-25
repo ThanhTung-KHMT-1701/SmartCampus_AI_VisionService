@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+date: Sat, 22 Aug 2026 04:15:21 GMT
+server: uvicorn
+content-length: 175
+content-type: application/json
+
+{"status":"ok","service":"ai-yolo","version":"0.5.0","mode":"inproc","model_loaded":true,"model_name":"yolov8n","weights_path":"/app/yolov8n.pt","time":"2026-08-22T04:15:22Z"}
