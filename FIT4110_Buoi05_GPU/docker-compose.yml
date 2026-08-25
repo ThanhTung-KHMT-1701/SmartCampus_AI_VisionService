@@ -1,104 +1,83 @@
 services:
-  # ── AI Vision API (FastAPI) ────────────────────────────────────────────────
-  ai-vision:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: fit4110-ai-vision-lab05
-    image: fit4110/ai-vision:lab05
+  # ── MySQL Database ──────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: ${CONTAINER_MYSQL:-fit4110-mysql-lab05}
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      AI_SERVICE_URL: http://ai-service:9000
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_vision_db}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    networks:
+      - team-internal
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-vision:
+    image: ${IMAGE_AI_VISION}
+    container_name: ${CONTAINER_AI_VISION}
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./src:/service:ro
+    environment:
+      # ── MySQL Database ─────────────────────────────────────────────────────
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_vision_db}
+      # ── AI Service internal URL ─────────────────────────────────────────
+      AI_SERVICE_URL: http://${SERVICE_AI_SERVICE}:${AI_SERVICE_PORT}
     depends_on:
+      mysql:
+        condition: service_healthy
       ai-service:
-        condition: service_healthy
-      core-business-mock:
-        condition: service_healthy
-      camera-stream-mock:
         condition: service_healthy
     networks:
       - team-internal
+      - host-bridge
     ports:
-      - "${APP_PORT:-8000}:8000"
+      - "${APP_PORT}:${APP_PORT}"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${APP_PORT}/health', timeout=3).read()"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 15s
 
-  # ── AI inference service (YOLO mock / side inference) ─────────────────────
   ai-service:
     build:
       context: .
-      dockerfile: Dockerfile.ai-service
-    container_name: fit4110-ai-lab05
-    image: fit4110/ai-service:lab05
+      dockerfile: ${DOCKERFILE_AI_SERVICE}
+    container_name: ${CONTAINER_AI_SERVICE}
+    image: ${IMAGE_AI_SERVICE}
     restart: unless-stopped
     working_dir: /service
     networks:
       - team-internal
+      - host-bridge
     ports:
-      - "${AI_SERVICE_PORT:-9000}:9000"
+      - "${AI_SERVICE_PORT}:${AI_SERVICE_PORT}"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=3).read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${AI_SERVICE_PORT}/health', timeout=3).read()"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 15s
 
-  # ── Core Business mock (side mock) ─────────────────────────────────────────
-  core-business-mock:
-    build:
-      context: .
-      dockerfile: Dockerfile.core-mock
-    container_name: fit4110-core-mock-lab05
-    image: fit4110/core-business-mock:lab05
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      APP_HOST: 0.0.0.0
-      APP_PORT: "4012"
-      CORE_AUTH_TOKEN: ${CORE_AUTH_TOKEN:-lab-token-core}
-    networks:
-      - team-internal
-    ports:
-      - "4012:4012"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4012/health', timeout=3).read()"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-  # ── Camera Stream mock (side mock) ─────────────────────────────────────────
-  camera-stream-mock:
-    build:
-      context: .
-      dockerfile: Dockerfile.camera-mock
-    container_name: fit4110-camera-mock-lab05
-    image: fit4110/camera-stream-mock:lab05
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      APP_HOST: 0.0.0.0
-      APP_PORT: "4014"
-      CAMERA_AUTH_TOKEN: ${CAMERA_AUTH_TOKEN:-lab-token-camera}
-    networks:
-      - team-internal
-    ports:
-      - "4014:4014"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4014/health', timeout=3).read()"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
 networks:
   team-internal:
     driver: bridge
+  host-bridge:
+    driver: bridge
+
+volumes:
+  mysql_data:

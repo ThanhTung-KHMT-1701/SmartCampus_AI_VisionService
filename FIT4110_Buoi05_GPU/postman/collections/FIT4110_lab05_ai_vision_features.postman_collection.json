@@ -1,0 +1,497 @@
+{
+  "info": {
+    "_postman_id": "fit4110-lab05-ai-vision-features",
+    "name": "FIT4110 Lab05 — AI Vision Features (Internal)",
+    "description": "Test từng chức năng riêng lẻ của Service ai-vision (cổng 8000). Mục đích: kiểm thử internal, không phụ thuộc camera-mock.\n\nCác endpoint:\n- GET  /health\n- POST /vision/detect\n- GET  /vision/detections/{id}\n- GET  /vision/results/recent\n- POST /vision/face-match\n- GET  /vision/models/info",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01_Health_Endpoint",
+      "item": [
+        {
+          "name": "GET /health (no auth required)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Body has status=ok', () => pm.expect(b.status).to.eql('ok'));",
+                  "pm.test('Body has modelLoaded=true', () => pm.expect(b.modelLoaded).to.eql(true));",
+                  "pm.test('Body has modelVersion', () => pm.expect(b.modelVersion).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Detect_Objects",
+      "item": [
+        {
+          "name": "POST /vision/detect (image_url, normal conf)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-a1\",\n  \"image_url\": \"https://picsum.photos/640/480\",\n  \"timestamp\": \"2026-08-25T09:00:00Z\",\n  \"confidence_threshold\": 0.5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has detection_id', () => pm.expect(b.detection_id).to.match(/^[0-9a-f-]{36}$/));",
+                  "pm.test('Has detections array', () => pm.expect(b.detections).to.be.an('array'));",
+                  "pm.test('Has risk_level LOW|MEDIUM|HIGH', () => pm.expect(['LOW','MEDIUM','HIGH','CRITICAL']).to.include(b.risk_level));",
+                  "pm.test('Has model_version', () => pm.expect(b.model_version).to.be.a('string'));",
+                  "pm.test('Has processing_time_ms number', () => pm.expect(b.processing_time_ms).to.be.a('number'));",
+                  "pm.test('Header X-Detection-Id matches', () => pm.expect(pm.response.headers.get('X-Detection-Id')).to.eql(b.detection_id));",
+                  "pm.collectionVariables.set('lastDetectionId', b.detection_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect (image_url, high conf — likely empty result)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-b2\",\n  \"image_url\": \"https://picsum.photos/200/200\",\n  \"timestamp\": \"2026-08-25T09:00:00Z\",\n  \"confidence_threshold\": 0.95\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has detection_id uuid', () => pm.expect(b.detection_id).to.match(/^[0-9a-f-]{36}$/));",
+                  "pm.test('detections is array', () => pm.expect(b.detections).to.be.an('array'));",
+                  "pm.collectionVariables.set('lastDetectionId', b.detection_id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03_Get_Detection_By_Id",
+      "item": [
+        {
+          "name": "GET /vision/detections/{id} — valid id (pre-request ensures id exists)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/{{lastDetectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "{{lastDetectionId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const detectReq = {",
+                  "  method: 'POST',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.environment.get('authToken'), 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({",
+                  "    camera_id: 'cam-pre',",
+                  "    image_url: 'https://picsum.photos/640/480',",
+                  "    timestamp: '2026-08-25T09:00:00Z'",
+                  "  }) },",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}') + '/vision/detect'",
+                  "};",
+                  "pm.sendRequest(detectReq, (err, res) => {",
+                  "  if (!err && res.json()) {",
+                  "    pm.collectionVariables.set('lastDetectionId', res.json().detection_id);",
+                  "  }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('detection_id matches', () => pm.expect(b.detection_id).to.eql(pm.collectionVariables.get('lastDetectionId')));",
+                  "pm.test('Has detections array', () => pm.expect(b.detections).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{id} — not found",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "00000000-0000-0000-0000-000000000000"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Content-Type problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{id} — invalid uuid",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/not-a-uuid",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "not-a-uuid"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04_List_Recent_Detections",
+      "item": [
+        {
+          "name": "GET /vision/results/recent — default",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('items array', () => pm.expect(b.items).to.be.an('array'));",
+                  "pm.test('hasMore boolean', () => pm.expect(b.hasMore).to.be.a('boolean'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent — limit=5&camera_id filter",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent?limit=5&camera_id=cam-a1",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"],
+              "query": [
+                { "key": "limit", "value": "5" },
+                { "key": "camera_id", "value": "cam-a1" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('items length <= 5', () => pm.expect(pm.response.json().items.length).to.be.at.most(5));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05_Face_Match",
+      "item": [
+        {
+          "name": "POST /vision/face-match (url+url)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"https://picsum.photos/640/480\",\n  \"reference_image_url\": \"https://picsum.photos/640/480\",\n  \"threshold\": 0.75,\n  \"trace_id\": \"trace-001\",\n  \"timestamp\": \"2026-08-25T09:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vision/face-match",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "face-match"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has match_id uuid', () => pm.expect(b.match_id).to.match(/^[0-9a-f-]{36}$/));",
+                  "pm.test('status in valid set', () => pm.expect(['MATCHED','NOT_MATCHED','LOW_CONFIDENCE','ERROR']).to.include(b.status));",
+                  "pm.test('confidence is number 0-1', () => pm.expect(b.confidence).to.be.within(0, 1));",
+                  "pm.test('threshold is number', () => pm.expect(b.threshold).to.be.a('number'));",
+                  "pm.test('X-Trace-Id header', () => pm.expect(pm.response.headers.get('X-Trace-Id')).to.eql('trace-001'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/face-match (url+url, different images)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"https://picsum.photos/300/300\",\n  \"reference_image_url\": \"https://picsum.photos/400/400\",\n  \"threshold\": 0.8,\n  \"timestamp\": \"2026-08-25T09:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vision/face-match",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "face-match"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has match_id', () => pm.expect(pm.response.json().match_id).to.match(/^[0-9a-f-]{36}$/));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06_Model_Info",
+      "item": [
+        {
+          "name": "GET /vision/models/info",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/models/info",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "models", "info"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('model_id is string', () => pm.expect(b.model_id).to.be.a('string'));",
+                  "pm.test('framework=ultralytics', () => pm.expect(b.framework).to.eql('ultralytics'));",
+                  "pm.test('classes is array', () => pm.expect(b.classes).to.be.an('array'));",
+                  "pm.test('status=ACTIVE', () => pm.expect(b.status).to.eql('ACTIVE'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07_Auth_Negative",
+      "item": [
+        {
+          "name": "POST /vision/detect — no token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-a1\",\n  \"image_url\": \"https://picsum.photos/640/480\",\n  \"timestamp\": \"2026-08-25T09:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect — wrong token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer wrong-token-xxx" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-a1\",\n  \"image_url\": \"https://picsum.photos/640/480\",\n  \"timestamp\": \"2026-08-25T09:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect — both image_url and base64",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-a1\",\n  \"image_url\": \"https://picsum.photos/640/480\",\n  \"image_base64\": \"AAAA\",\n  \"timestamp\": \"2026-08-25T09:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "lastDetectionId",
+      "value": ""
+    }
+  ]
+}

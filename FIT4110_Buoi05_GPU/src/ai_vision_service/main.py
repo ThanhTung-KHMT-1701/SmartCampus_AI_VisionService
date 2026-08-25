@@ -32,13 +32,20 @@ from .schemas import (
     ModelInfo,
     ProblemDetails,
 )
-from .store import DetectionStore
+from .store import DetectionStore, FaceMatchStore
 
 app = FastAPI(
     title="AI Vision Service",
     version="1.0.0",
     description="FIT4110 - Smart Campus AI Vision (FIT4110_Buoi03_Postman_Mock_Testing).",
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Khởi tạo database khi app start."""
+    DetectionStore.init_db()
+
 
 store = DetectionStore()
 
@@ -139,8 +146,12 @@ def _infer_detections(req: DetectRequest) -> list[Detection]:
             payload["image_base64"] = req.image_base64
         if req.confidence_threshold is not None:
             payload["confidence_threshold"] = req.confidence_threshold
+        payload["camera_id"] = req.camera_id
+        payload["timestamp"] = req.timestamp
+        if req.model_version is not None:
+            payload["model_version"] = req.model_version
 
-        resp = requests.post(f"{AI_SERVICE_URL}/predict", json=payload, timeout=30.0)
+        resp = requests.post(f"{AI_SERVICE_URL}/vision/detect", json=payload, timeout=30.0)
         if resp.status_code >= 400:
             try:
                 detail = resp.json().get("detail", resp.text[:200])
@@ -159,10 +170,15 @@ def _infer_detections(req: DetectRequest) -> list[Detection]:
             detail=f"ai-service inference failed: {exc}",
         ) from exc
 
-    labels = data.get("objects") or data.get("labels") or []
-    confidences = data.get("confidence") or data.get("scores") or []
+    labels = []
+    confidences = []
+    for det in data.get("detections") or []:
+        labels.append(det.get("label") or det.get("class_name") or "")
+        confidences.append(det.get("confidence", 0.5))
     detections = []
     for i, label in enumerate(labels):
+        if not label:
+            continue
         conf = confidences[i] if i < len(confidences) else 0.5
         class_id = {"person": 0, "car": 2, "motorcycle": 3, "dog": 16, "cat": 15}.get(label, 99)
         detections.append(
@@ -171,15 +187,6 @@ def _infer_detections(req: DetectRequest) -> list[Detection]:
                 confidence=conf,
                 bbox=BoundingBox(x=50 + i * 30, y=50, width=80, height=150),
                 class_id=class_id,
-            )
-        )
-    if not detections:
-        detections.append(
-            Detection(
-                label="person",
-                confidence=0.95,
-                bbox=BoundingBox(x=100, y=50, width=80, height=150),
-                class_id=0,
             )
         )
     return detections
@@ -283,29 +290,64 @@ async def face_match(req: FaceMatchRequest, request: Request) -> JSONResponse:
         )
 
     started = time.perf_counter()
-    await asyncio.sleep(0)  # yield once để tương thích async
-    processing_ms = int((time.perf_counter() - started) * 1000) + 88
 
-    confidence = 0.93
-    if req.threshold is not None and req.threshold >= 0.9:
-        confidence = 0.45  # mô phỏng kém khớp khi threshold cao
+    payload: dict[str, Any] = {
+        "image_url": req.image_url,
+        "image_base64": req.image_base64,
+        "reference_image_url": req.reference_image_url,
+        "reference_image_base64": req.reference_image_base64,
+        "threshold": req.threshold,
+        "trace_id": req.trace_id,
+        "timestamp": req.timestamp,
+    }
 
-    matched = confidence >= req.threshold
-    if matched:
-        status_value: Literal["MATCHED", "NOT_MATCHED", "LOW_CONFIDENCE", "ERROR"] = "MATCHED"
+    try:
+        resp = requests.post(f"{AI_SERVICE_URL}/vision/face-match", json=payload, timeout=30.0)
+        if resp.status_code >= 400:
+            try:
+                detail = resp.json().get("detail", resp.text[:200])
+            except Exception:
+                detail = resp.text[:200]
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail=f"ai-service face-compare error: {detail}",
+            )
+        face_data = resp.json()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"ai-service face-compare failed: {exc}",
+        ) from exc
+
+    similarity = face_data.get("confidence", 0.0)
+    threshold = req.threshold if req.threshold is not None else 0.75
+    matched = face_data.get("matched", False)
+    face_status = face_data.get("status", "ERROR")
+    # Nếu status là ERROR hoặc LOW_CONFIDENCE → coi như không detect được mặt
+    face_ok = face_status not in ("ERROR", "LOW_CONFIDENCE")
+
+    if not face_ok:
+        status_value: Literal["MATCHED", "NOT_MATCHED", "LOW_CONFIDENCE", "ERROR"] = "ERROR"
+        message = "Không phát hiện khuôn mặt trong ảnh"
+    elif matched:
+        status_value = "MATCHED"
         message = "Khuôn mặt khớp với độ tin cậy cao"
-    elif confidence >= 0.6:
+    elif similarity >= 0.6:
         status_value = "LOW_CONFIDENCE"
         message = "Không đủ độ tin cậy để xác nhận, cần kiểm tra thủ công"
     else:
         status_value = "NOT_MATCHED"
-        message = "Khuôn mặt không khớp, confidence thấp hơn ngưỡng"
+        message = "Khuôn mặt không khớp, similarity thấp hơn ngưỡng"
+
+    processing_ms = int((time.perf_counter() - started) * 1000) + 88
 
     response = FaceMatchResponse(
         match_id=str(uuid.uuid4()),
         matched=matched,
-        confidence=confidence,
-        threshold=req.threshold,
+        confidence=similarity,
+        threshold=threshold,
         status=status_value,
         message=message,
         model_version=FACE_MODEL_VERSION,
@@ -313,6 +355,13 @@ async def face_match(req: FaceMatchRequest, request: Request) -> JSONResponse:
         trace_id=req.trace_id,
         timestamp=_now_iso(),
     )
+
+    # Lưu vào database
+    try:
+        FaceMatchStore.add(response)
+    except Exception:
+        pass  # Không block response nếu lưu DB thất bại
+
     headers = {"X-Trace-Id": req.trace_id or ""}
     return JSONResponse(
         status_code=200,

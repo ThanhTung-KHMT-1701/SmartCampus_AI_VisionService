@@ -23,6 +23,12 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Cài đặt MySQL client libraries cho pymysql
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    default-libmysqlclient-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
 # Biến runtime mặc định – có thể override qua .env
 ENV APP_HOST=0.0.0.0
 ENV APP_PORT=8000

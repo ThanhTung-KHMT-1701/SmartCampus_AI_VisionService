@@ -25,18 +25,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /service
 
-# Cài pip packages — dùng BuildKit cache mount để giữ downloaded packages giữa các lần build
+# Cài pip packages — layer này cache riêng, không bị invalid khi đổi source code
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --break-system-packages \
         ultralytics \
         fastapi \
         "uvicorn[standard]" \
         requests \
-        opencv-python-headless
+        opencv-python-headless \
+        facenet-pytorch
 
-# Copy source code VÀ pre-downloaded YOLO model
+# Copy source code SAU pip install để layer pip cache khi đổi code Python
 COPY src/ai_service/ /service/
 COPY models/ /models/
+
+# Pre-download FaceNet + MTCNN weights vào torch cache (cached trong image)
+ENV TORCH_HOME=/models/torch_cache
+RUN --mount=type=cache,target=/models/torch_cache/hub \
+    python -c "from facenet_pytorch import InceptionResnetV1, MTCNN; InceptionResnetV1(pretrained='vggface2').eval(); MTCNN()" \
+    || echo "[ai-service] Pretrained weights download failed, will retry at runtime"
 
 EXPOSE 9000
 
