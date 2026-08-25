@@ -1,0 +1,577 @@
+{
+  "info": {
+    "_postman_id": "56dced67-eb6d-480e-ae46-ca75488cc7b7",
+    "name": "Camera Stream Service API",
+    "description": "Service nhận dữ liệu từ camera, quản lý frame ảnh/video stream,\nvà gọi AI Vision khi phát hiện điều kiện cần phân tích.\n\n**Product:** A\n**Team:** Camera Stream\n\n\nContact Support:\n Name: Camera Stream Team\n Email: camera-stream@smartcampus.edu.vn",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "57355235",
+    "_collection_link": "https://go.postman.co/collection/57355235-56dced67-eb6d-480e-ae46-ca75488cc7b7?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "health",
+      "item": []
+    },
+    {
+      "name": "cameras",
+      "item": [
+        {
+          "name": "{cameraId}",
+          "item": []
+        }
+      ]
+    },
+    {
+      "name": "frames",
+      "item": []
+    },
+    {
+      "name": "01_Functional",
+      "item": [
+        {
+          "name": "Kiểm tra trạng thái service",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Endpoint kiểm tra service còn hoạt động."
+          },
+          "response": [
+            {
+              "name": "Service đang hoạt động",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "health"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"ok\",\n  \"service\": \"camera-stream-service\",\n  \"time\": \"2026-08-13T10:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Lấy chi tiết camera",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cameras/:cameraId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cameras",
+                ":cameraId"
+              ],
+              "variable": [
+                {
+                  "key": "cameraId",
+                  "value": "cam-4-th5n1-o-",
+                  "description": "Mã định danh của camera"
+                }
+              ]
+            },
+            "description": "Trả về thông tin chi tiết của một camera."
+          },
+          "response": [
+            {
+              "name": "Thông tin camera",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/cameras/:cameraId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cameras",
+                    ":cameraId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "cameraId",
+                      "value": "cam-4-th5n1-o-",
+                      "description": "Mã định danh của camera"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"name\": \"Cổng chính\",\n  \"status\": \"active\",\n  \"location\": \"Khu vực cổng chính\",\n  \"ip_address\": \"192.168.1.100\",\n  \"stream_url\": \"rtsp://192.168.1.100:554/stream\"\n}"
+            },
+            {
+              "name": "Resource không tồn tại",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/problem+json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/cameras/:cameraId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cameras",
+                    ":cameraId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "cameraId",
+                      "value": "cam-4-th5n1-o-",
+                      "description": "Mã định danh của camera"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"type\": \"https://campus.local/errors/validation\",\n  \"title\": \"Dữ liệu không hợp lệ\",\n  \"status\": 400,\n  \"detail\": \"Field camera_id không đúng định dạng\",\n  \"instance\": \"https://CsCRQlSHBdpSUGfVYuLVzcUh.fuXmD7zXhQsUZ-oglmkb.7GqWLkMiQ+7ZckInV-Kz.HqZwJr9mFN\",\n  \"errors\": [\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    },\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "Lỗi server",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/problem+json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/cameras/:cameraId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cameras",
+                    ":cameraId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "cameraId",
+                      "value": "cam-4-th5n1-o-",
+                      "description": "Mã định danh của camera"
+                    }
+                  ]
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"type\": \"https://campus.local/errors/validation\",\n  \"title\": \"Dữ liệu không hợp lệ\",\n  \"status\": 400,\n  \"detail\": \"Field camera_id không đúng định dạng\",\n  \"instance\": \"https://CsCRQlSHBdpSUGfVYuLVzcUh.fuXmD7zXhQsUZ-oglmkb.7GqWLkMiQ+7ZckInV-Kz.HqZwJr9mFN\",\n  \"errors\": [\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    },\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Upload frame ảnh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"https://storage.smartcampus.edu.vn/frames/frame.jpg\",\n  \"timestamp\": \"2026-08-13T09:05:00Z\",\n  \"motion_detected\": true,\n  \"metadata\": {\n    \"resolution\": \"1920x1080\",\n    \"fps\": \"30\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/frames",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "frames"
+              ]
+            },
+            "description": "Nhận frame ảnh từ camera và lưu vào hệ thống."
+          },
+          "response": [
+            {
+              "name": "Frame đã được nhận",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"https://storage.smartcampus.edu.vn/frames/frame.jpg\",\n  \"timestamp\": \"2026-08-13T09:05:00Z\",\n  \"motion_detected\": true,\n  \"metadata\": {\n    \"resolution\": \"1920x1080\",\n    \"fps\": \"30\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/frames",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "frames"
+                  ]
+                }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"frame_id\": \"frame-20260813-090500-abc123\",\n  \"status\": \"accepted\",\n  \"timestamp\": \"2026-08-13T09:05:01Z\",\n  \"message\": \"Frame accepted for processing\"\n}"
+            },
+            {
+              "name": "Dữ liệu sai định dạng",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/problem+json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"https://storage.smartcampus.edu.vn/frames/frame.jpg\",\n  \"timestamp\": \"2026-08-13T09:05:00Z\",\n  \"motion_detected\": true,\n  \"metadata\": {\n    \"resolution\": \"1920x1080\",\n    \"fps\": \"30\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/frames",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "frames"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"type\": \"https://campus.local/errors/validation\",\n  \"title\": \"Dữ liệu không hợp lệ\",\n  \"status\": 400,\n  \"detail\": \"Field camera_id không đúng định dạng\",\n  \"instance\": \"https://CsCRQlSHBdpSUGfVYuLVzcUh.fuXmD7zXhQsUZ-oglmkb.7GqWLkMiQ+7ZckInV-Kz.HqZwJr9mFN\",\n  \"errors\": [\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    },\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "Lỗi server",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/problem+json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"camera_id\": \"cam-gate-01\",\n  \"image_url\": \"https://storage.smartcampus.edu.vn/frames/frame.jpg\",\n  \"timestamp\": \"2026-08-13T09:05:00Z\",\n  \"motion_detected\": true,\n  \"metadata\": {\n    \"resolution\": \"1920x1080\",\n    \"fps\": \"30\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "headerFamily": "json",
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/frames",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "frames"
+                  ]
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"type\": \"https://campus.local/errors/validation\",\n  \"title\": \"Dữ liệu không hợp lệ\",\n  \"status\": 400,\n  \"detail\": \"Field camera_id không đúng định dạng\",\n  \"instance\": \"https://CsCRQlSHBdpSUGfVYuLVzcUh.fuXmD7zXhQsUZ-oglmkb.7GqWLkMiQ+7ZckInV-Kz.HqZwJr9mFN\",\n  \"errors\": [\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    },\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Lấy danh sách camera",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cameras?status=all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cameras"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Lọc camera theo trạng thái"
+                }
+              ]
+            },
+            "description": "Trả về danh sách tất cả camera trong hệ thống."
+          },
+          "response": [
+            {
+              "name": "Danh sách camera",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/cameras?status=all",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cameras"
+                  ],
+                  "query": [
+                    {
+                      "description": "Lọc camera theo trạng thái",
+                      "key": "status",
+                      "value": "all"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"camera_id\": \"cam-gate-01\",\n    \"name\": \"Cổng chính\",\n    \"status\": \"active\",\n    \"location\": \"Khu vực cổng chính\",\n    \"ip_address\": \"192.168.1.100\",\n    \"stream_url\": \"rtsp://192.168.1.100:554/stream\"\n  },\n  {\n    \"camera_id\": \"cam-gate-01\",\n    \"name\": \"Cổng chính\",\n    \"status\": \"active\",\n    \"location\": \"Khu vực cổng chính\",\n    \"ip_address\": \"192.168.1.100\",\n    \"stream_url\": \"rtsp://192.168.1.100:554/stream\"\n  }\n]"
+            },
+            {
+              "name": "Lỗi server",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/problem+json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/cameras?status=all",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cameras"
+                  ],
+                  "query": [
+                    {
+                      "description": "Lọc camera theo trạng thái",
+                      "key": "status",
+                      "value": "all"
+                    }
+                  ]
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"type\": \"https://campus.local/errors/validation\",\n  \"title\": \"Dữ liệu không hợp lệ\",\n  \"status\": 400,\n  \"detail\": \"Field camera_id không đúng định dạng\",\n  \"instance\": \"https://CsCRQlSHBdpSUGfVYuLVzcUh.fuXmD7zXhQsUZ-oglmkb.7GqWLkMiQ+7ZckInV-Kz.HqZwJr9mFN\",\n  \"errors\": [\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    },\n    {\n      \"field\": \"string\",\n      \"code\": \"string\",\n      \"message\": \"string\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Auth",
+      "item": []
+    },
+    {
+      "name": "03_Negative",
+      "item": []
+    },
+    {
+      "name": "04_Boundary_Reliability",
+      "item": []
+    },
+    {
+      "name": "05_Consumer_side_Smoke",
+      "item": []
+    },
+    {
+      "name": "06_Local_only_NonFunctional",
+      "item": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    }
+  ]
+}

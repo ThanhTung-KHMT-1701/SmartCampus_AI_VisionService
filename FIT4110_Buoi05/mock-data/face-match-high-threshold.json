@@ -1,0 +1,7 @@
+{
+  "image_url": "http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest",
+  "reference_image_url": "http://192.168.137.79:8001/profiles/student-001.jpg",
+  "threshold": 0.95,
+  "trace_id": "trace-lab05-002",
+  "timestamp": "2026-08-25T08:35:00Z"
+}

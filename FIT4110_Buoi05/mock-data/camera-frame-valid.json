@@ -1,0 +1,6 @@
+{
+  "camera_id": "cam-lab05-01",
+  "frame_url": "http://192.168.137.115:8001/cameras/cam-lab05-01/frames/latest",
+  "motion_detected": true,
+  "timestamp": "2026-08-25T08:45:00Z"
+}

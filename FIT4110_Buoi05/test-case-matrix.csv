@@ -1,0 +1,26 @@
+ID,Folder,Endpoint,Method,Scenario,Input file/body,Expected status,Expected response check,Type,Pass/Fail,Evidence
+TC01,00_Health,/health,GET,Service is alive (public),-,200,status=ok,service=ai-vision,modelLoaded=true,health,Pass,reports/evidence/TC01.stdout.txt
+TC02,01_Functional,/vision/detect,POST,Detect with image_url,happy path body,200,has detection_id,has detections array,has risk_level in enum,functional,Pass,reports/evidence/TC02.stdout.txt
+TC03,01_Functional,/vision/detect,POST,Detect with image_base64,happy path body,200,has detection_id,has detections array,functional,Pass,reports/evidence/TC03.stdout.txt
+TC04,01_Functional,/vision/detections/{id},GET,Get detection by UUID,valid UUID,200,detection_id matches request,has detections array,functional,Pass,reports/evidence/TC05.stdout.txt
+TC05,01_Functional,/vision/results/recent,GET,List recent detections with filter,limit=10&camera_id=cam-lab05-gate,200,has items array,has hasMore boolean,functional,Pass,reports/evidence/TC06.stdout.txt
+TC06,01_Functional,/vision/face-match,POST,Face match happy path (threshold=0.75),match body,200,has match_id,matched=true,status=MATCHED,functional,Pass,reports/evidence/TC07.stdout.txt
+TC07,01_Functional,/vision/models/info,GET,Get AI model metadata,-,200,has model_id,has classes array,status in enum,functional,Pass,reports/evidence/TC08.stdout.txt
+TC08,02_Auth,/vision/detect,POST,Missing token returns 401 on real Docker,happy path body,401,ProblemDetails,auth-real,Pass,reports/evidence/TC10.stdout.txt
+TC09,02_Auth,/vision/detect,POST,Wrong token returns 401 on real Docker,happy path body,401,ProblemDetails,auth-real,Pass,reports/evidence/TC11.stdout.txt
+TC10,02_Auth,/vision/detections/{id},GET,Valid token accepted (not 401),valid UUID,200 or 404,not 401 or 403,auth-real,Pass,reports/evidence/TC05.stdout.txt
+TC11,03_Negative,/vision/detect,POST,Missing required camera_id,mock-data/vision-detect-missing-image-like.json,422,ProblemDetails,negative,Pass,reports/evidence/TC12.stdout.txt
+TC12,03_Negative,/vision/detect,POST,Missing image (no url nor base64),mock-data/vision-detect-missing-image.json,422,detail about image,negative,Pass,reports/evidence/TC13.stdout.txt
+TC13,03_Negative,/vision/detect,POST,Both image_url AND image_base64,mock-data/vision-detect-both-images.json,422,mutually exclusive,negative,Pass,reports/evidence/TC15.stdout.txt
+TC14,03_Negative,/vision/detect,POST,Invalid camera_id pattern (space/uppercase),mock-data/vision-detect-invalid-camera-id.json,422,validation error,negative,Pass,reports/evidence/TC15.stdout.txt
+TC15,03_Negative,/vision/detections/{id},GET,Random UUID returns 404 (not 401),random UUID,404,detail about not found,negative,Pass,reports/evidence/TC09.stdout.txt
+TC16,03_Negative,/vision/detections/{id},GET,Invalid UUID format returns 422,not-a-uuid path,422,validation error,negative,Pass,reports/evidence/TC14.stdout.txt
+TC17,03_Negative,/vision/results/recent,GET,Limit above max (101),query limit=101,422,validation error,negative,Pass,reports/evidence/TC16.stdout.txt
+TC18,04_Boundary,/vision/detect,POST,Confidence threshold at min (0.0),boundary-low body,200,has detection_id,boundary,Pass,reports/evidence/TC04.stdout.txt
+TC19,04_Boundary,/vision/detect,POST,Confidence threshold at max (1.0),boundary-high body,200,has detection_id,boundary,Pass,reports/evidence/TC04.stdout.txt
+TC20,04_Boundary,/vision/results/recent,GET,Limit at max (100),query limit=100,200,has items array,boundary,Pass,reports/evidence/TC16.stdout.txt
+TC21,05_Consumer,/frames,POST,Consumer-side smoke: Camera Stream mock at LAN,camera-frame body,201,has frame_id,consumer-side,Pass,reports/evidence/TC17.stdout.txt
+TC22,05_Consumer,/health,GET,Consumer-side smoke: Camera Stream mock reachable,-,200,status=ok,consumer-side,Pass,reports/evidence/TC18.stdout.txt
+TC23,06_Local,/vision/detect,POST,Local Docker latency < 5000ms,plain body,200,response time SLA,local-only,Pass,reports/vision-newman-report-docker-latest.xml
+TC24,06_Local,/health,GET,Local Docker health < 500ms,-,200,response time SLA,local-only,Pass,reports/vision-newman-report-docker-latest.xml
+TC25,06_Local,/vision/results/recent,GET,Local Docker paginate < 2000ms,query limit=20,200,response time SLA,local-only,Pass,reports/vision-newman-report-docker-latest.xml

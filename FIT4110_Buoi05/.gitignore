@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Docker
+docker-compose.override.yml
+
+# Test evidence (giữ .gitkeep, README.md)
+reports/*.html
+reports/*.xml
+reports/evidence/*.txt
+reports/evidence/*.json
+!reports/.gitkeep
+!reports/README.md
+!reports/evidence/.gitkeep
+
+# Local env override
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Postman CLI cache
+.postman/

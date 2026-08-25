@@ -1,0 +1,1207 @@
+{
+  "info": {
+    "_postman_id": "fit4110-lab05-ai-vision-docker",
+    "name": "FIT4110 Lab05 - AI Vision Docker Real-API Tests",
+    "description": "Postman collection cho Buổi 5: AI Vision Service chạy thật trong Docker container (port 8000). Test gọi API thật — không dùng Prism mock. Mỗi request đều có test script kiểm tra response schema và trạng thái HTTP. Một số test Auth chỉ chạy được khi service thật đang chạy (không mock được).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const prefix = pm.environment.get('tracePrefix') || 'fit4110-lab05';",
+          "pm.variables.set('traceId', prefix + '-' + Date.now());",
+          "pm.request.headers.upsert({ key: 'X-Trace-Id', value: pm.variables.get('traceId') });"
+        ]
+      }
+    }
+  ],
+  "variable": [],
+  "item": [
+    {
+      "name": "00_Health",
+      "item": [
+        {
+          "name": "GET /health - service is alive (public, no auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Endpoint public — không cần token. Dùng để health-check trước khi chạy các test khác."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has status=ok', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('status', 'ok');",
+                  "});",
+                  "pm.test('Response has service name', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('service');",
+                  "  pm.expect(json.service).to.eql('ai-vision');",
+                  "});",
+                  "pm.test('Response has modelLoaded=true', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('modelLoaded', true);",
+                  "});",
+                  "pm.test('Response has modelVersion string', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('modelVersion');",
+                  "  pm.expect(json.modelVersion).to.be.a('string');",
+                  "});",
+                  "pm.test('Response has ISO timestamp', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('time');",
+                  "  pm.expect(json.time).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01_Functional",
+      "item": [
+        {
+          "name": "POST /vision/detect - happy path with image_url",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Detect objects via image URL. Trả về detection_id, detections array, risk_level.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-gate\",\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"timestamp\": \"2026-08-25T08:00:00Z\",\n  \"confidence_threshold\": 0.6\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has detection_id (UUID)', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "  pm.expect(json.detection_id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "  pm.environment.set('lastDetectionId', json.detection_id);",
+                  "});",
+                  "pm.test('Response has camera_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('camera_id', 'cam-lab05-gate');",
+                  "});",
+                  "pm.test('Response has detections array', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detections');",
+                  "  pm.expect(json.detections).to.be.an('array');",
+                  "  pm.expect(json.detections.length).to.be.above(0);",
+                  "});",
+                  "pm.test('Detection entry has required fields', function () {",
+                  "  const json = pm.response.json();",
+                  "  const det = json.detections[0];",
+                  "  pm.expect(det).to.have.property('label');",
+                  "  pm.expect(det).to.have.property('confidence');",
+                  "  pm.expect(det.confidence).to.be.within(0, 1);",
+                  "  pm.expect(det).to.have.property('bbox');",
+                  "  pm.expect(det.bbox).to.have.property('x');",
+                  "  pm.expect(det.bbox).to.have.property('y');",
+                  "  pm.expect(det.bbox).to.have.property('width');",
+                  "  pm.expect(det.bbox).to.have.property('height');",
+                  "});",
+                  "pm.test('Response has risk_level in enum', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('risk_level');",
+                  "  pm.expect(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).to.include(json.risk_level);",
+                  "});",
+                  "pm.test('Response has model_version', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('model_version');",
+                  "});",
+                  "pm.test('Response has processing_time_ms >= 0', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('processing_time_ms');",
+                  "  pm.expect(json.processing_time_ms).to.be.at.least(0);",
+                  "});",
+                  "pm.test('Response has ISO timestamp', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('timestamp');",
+                  "  pm.expect(json.timestamp).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/);",
+                  "});",
+                  "pm.test('X-Detection-Id header is present', function () {",
+                  "  pm.expect(pm.response.headers.has('X-Detection-Id')).to.eql(true);",
+                  "});",
+                  "pm.test('X-Processing-Time-Ms header is present', function () {",
+                  "  pm.expect(pm.response.headers.has('X-Processing-Time-Ms')).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - happy path with image_base64",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Detect objects via base64-encoded image (mutually exclusive with image_url).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-library\",\n  \"image_base64\": \"aGVsbG8td29ybGQtaW1hZ2UtZm9yLWxpYnJhcnktY2FtZXJh\",\n  \"timestamp\": \"2026-08-25T08:05:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has detection_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "});",
+                  "pm.test('Response has detections array', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.detections).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{id} - get detection by UUID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/{{lastDetectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "{{lastDetectionId}}"]
+            },
+            "description": "Retrieve a previously created detection record by its UUID."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response detection_id matches request', function () {",
+                  "  const json = pm.response.json();",
+                  "  const saved = pm.environment.get('lastDetectionId');",
+                  "  pm.expect(json.detection_id).to.eql(saved);",
+                  "});",
+                  "pm.test('Response has full detection fields', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('camera_id');",
+                  "  pm.expect(json).to.have.property('detections');",
+                  "  pm.expect(json).to.have.property('risk_level');",
+                  "  pm.expect(json).to.have.property('model_version');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent - list recent detections",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent?limit=10&camera_id=cam-lab05-gate",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"],
+              "query": [
+                {"key": "limit", "value": "10"},
+                {"key": "camera_id", "value": "cam-lab05-gate"}
+              ]
+            },
+            "description": "List recent detection results with optional camera_id filter."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has items array', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('items');",
+                  "  pm.expect(json.items).to.be.an('array');",
+                  "});",
+                  "pm.test('Response has pagination fields', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('hasMore');",
+                  "  pm.expect(json.hasMore).to.be.a('boolean');",
+                  "});",
+                  "pm.test('nextCursor is string or null', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(['string', 'object']).to.include(typeof json.nextCursor);",
+                  "  if (typeof json.nextCursor === 'string') {",
+                  "    pm.expect(json.nextCursor.length).to.be.above(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/face-match - happy path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/face-match",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "face-match"]
+            },
+            "description": "Face match with threshold 0.75 — confidence 0.93 >= threshold => matched=true.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"reference_image_url\": \"http://192.168.137.79:8001/profiles/student-001.jpg\",\n  \"threshold\": 0.75,\n  \"trace_id\": \"trace-lab05-001\",\n  \"timestamp\": \"2026-08-25T08:30:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has match_id (UUID)', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('match_id');",
+                  "  pm.expect(json.match_id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "});",
+                  "pm.test('Response has matched boolean', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('matched');",
+                  "  pm.expect(json.matched).to.be.a('boolean');",
+                  "});",
+                  "pm.test('Response has confidence in [0,1]', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('confidence');",
+                  "  pm.expect(json.confidence).to.be.within(0, 1);",
+                  "});",
+                  "pm.test('Response has status in enum', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(['MATCHED', 'NOT_MATCHED', 'LOW_CONFIDENCE', 'ERROR']).to.include(json.status);",
+                  "});",
+                  "pm.test('Response has threshold', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('threshold');",
+                  "  pm.expect(json.threshold).to.eql(0.75);",
+                  "});",
+                  "pm.test('Response has model_version', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('model_version');",
+                  "});",
+                  "pm.test('Response has processing_time_ms >= 0', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.processing_time_ms).to.be.at.least(0);",
+                  "});",
+                  "pm.test('X-Trace-Id header echoes trace_id', function () {",
+                  "  pm.expect(pm.response.headers.has('X-Trace-Id')).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/models/info - get AI model metadata",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/models/info",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "models", "info"]
+            },
+            "description": "Returns model metadata: id, type, framework, classes, accuracy, status."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has model_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('model_id');",
+                  "});",
+                  "pm.test('Response has model_type object_detection', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.model_type).to.eql('object_detection');",
+                  "});",
+                  "pm.test('Response has framework info', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('framework');",
+                  "  pm.expect(json).to.have.property('framework_version');",
+                  "});",
+                  "pm.test('Response has classes array with required fields', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.classes).to.be.an('array');",
+                  "  pm.expect(json.classes.length).to.be.above(0);",
+                  "  const cls = json.classes[0];",
+                  "  pm.expect(cls).to.have.property('id');",
+                  "  pm.expect(cls).to.have.property('name');",
+                  "});",
+                  "pm.test('Response has status in enum', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(['ACTIVE', 'LOADING', 'ERROR', 'DEPRECATED']).to.include(json.status);",
+                  "});",
+                  "pm.test('Response has input_size >= 1', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.input_size).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Auth",
+      "item": [
+        {
+          "name": "GET /health - public endpoint needs no token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Sanity: health is always public."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Public health returns 200 without token', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - missing token returns 401 on real service",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Auth test thật: service Docker phải tự validate Bearer token. Không dùng Prism mock.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-gate\",\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"timestamp\": \"2026-08-25T08:00:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing token returns 401 on real Docker service', function () {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error follows ProblemDetails shape', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('type');",
+                  "  pm.expect(json).to.have.property('title');",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(json.status).to.be.within(400, 599);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - wrong token returns 401 on real service",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer wrong-token-lab05"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Auth test thật: service Docker phải từ chối token sai.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-gate\",\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"timestamp\": \"2026-08-25T08:00:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Wrong token returns 401 on real Docker service', function () {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error follows ProblemDetails shape', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('type');",
+                  "  pm.expect(json).to.have.property('title');",
+                  "  pm.expect(json).to.have.property('status');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{id} - valid token accepted (not 401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/{{lastDetectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "{{lastDetectionId}}"]
+            },
+            "description": "Valid token grants access — returns 200 or 404 (record not found), not 401."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Valid token: response is not 401 or 403', function () {",
+                  "  pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03_Negative",
+      "item": [
+        {
+          "name": "POST /vision/detect - missing required camera_id returns 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Missing camera_id triggers FastAPI validation error (RFC 9457 ProblemDetails).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"timestamp\": \"2026-08-25T08:00:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing camera_id returns 422', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error follows ProblemDetails shape', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('type');",
+                  "  pm.expect(json).to.have.property('title');",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(json.status).to.be.within(400, 599);",
+                  "});",
+                  "pm.test('Error includes errors array with field info', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('errors');",
+                  "  pm.expect(json.errors).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - missing image (no image_url nor image_base64) returns 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Service enforces mutual exclusivity: must provide exactly one of image_url or image_base64.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-01\",\n  \"timestamp\": \"2026-08-25T08:10:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing image returns 422', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error has detail about image requirement', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detail');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - both image_url AND image_base64 returns 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Service enforces mutual exclusivity — cannot provide both.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-01\",\n  \"image_url\": \"http://example.com/f.jpg\",\n  \"image_base64\": \"aGVsbG8=\",\n  \"timestamp\": \"2026-08-25T08:15:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Both images returns 422', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error detail mentions mutual exclusivity', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detail');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - invalid camera_id pattern returns 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "camera_id must match pattern ^[a-z0-9-]+$ — space or uppercase is rejected.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"CAM BAD ID SPACE\",\n  \"image_url\": \"http://example.com/f.jpg\",\n  \"timestamp\": \"2026-08-25T08:40:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid camera_id returns 422', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error follows ProblemDetails', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(json.status).to.be.within(400, 599);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{id} - random UUID returns 404 (not 401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Valid UUID format but record does not exist — 404, not 401."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Random UUID returns 404 (not 401)', function () {",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});",
+                  "pm.test('Error has detail', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detail');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/detections/{id} - invalid UUID format returns 422",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detections/not-a-uuid",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detections", "not-a-uuid"]
+            },
+            "description": "Non-UUID path param triggers Pydantic validation error."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid UUID format returns 422', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error follows ProblemDetails', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(json.status).to.be.within(400, 599);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent - limit above max (101) returns 422",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent?limit=101",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"],
+              "query": [
+                {"key": "limit", "value": "101"}
+              ]
+            },
+            "description": "limit must be ge=1 and le=100."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Limit above max returns 422', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Error follows ProblemDetails', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(json.status).to.be.within(400, 599);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/face-match - missing query image returns 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/face-match",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "face-match"]
+            },
+            "description": "Must provide image_url XOR image_base64 AND reference_image_url XOR reference_image_base64.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threshold\": 0.75,\n  \"timestamp\": \"2026-08-25T08:35:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing images returns 422', function () {",
+                  "  pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04_Boundary_Reliability",
+      "item": [
+        {
+          "name": "POST /vision/detect - confidence_threshold=0.0 (min) is accepted",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Boundary test: confidence_threshold=0.0 is the minimum allowed value.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-gate\",\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"timestamp\": \"2026-08-25T08:20:00Z\",\n  \"confidence_threshold\": 0.0\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('confidence_threshold=0.0 returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has detection_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/detect - confidence_threshold=1.0 (max) is accepted",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Boundary test: confidence_threshold=1.0 is the maximum allowed value.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-gate\",\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"timestamp\": \"2026-08-25T08:25:00Z\",\n  \"confidence_threshold\": 1.0\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('confidence_threshold=1.0 returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has detection_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detection_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent - limit=100 (max) is accepted",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent?limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"],
+              "query": [
+                {"key": "limit", "value": "100"}
+              ]
+            },
+            "description": "limit=100 is the maximum allowed — valid."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('limit=100 returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has items array', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.items).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /vision/face-match - threshold=0.0 (min) is accepted",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/face-match",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "face-match"]
+            },
+            "description": "Boundary: face-match threshold=0.0 is valid.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"reference_image_url\": \"http://192.168.137.79:8001/profiles/student-001.jpg\",\n  \"threshold\": 0.0,\n  \"timestamp\": \"2026-08-25T08:35:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('threshold=0.0 returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has match_id', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('match_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05_Consumer_side_Smoke",
+      "item": [
+        {
+          "name": "POST /frames - Camera Stream mock smoke (consumer-side)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{cameraToken}}"}
+            ],
+            "url": {
+              "raw": "{{cameraBaseUrl}}/frames",
+              "host": ["{{cameraBaseUrl}}"],
+              "path": ["frames"]
+            },
+            "description": "Consumer-side smoke: AI Vision (service đang test) gọi Camera Stream mock chạy ngoài Docker host. Camera Stream chạy ở IP LAN thực (192.168.137.115:8001 theo .env).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-e2e\",\n  \"frame_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-e2e/frames/latest\",\n  \"motion_detected\": true,\n  \"timestamp\": \"2026-08-25T08:45:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Camera Stream mock returns 2xx on POST /frames', function () {",
+                  "  pm.expect([200, 201, 202]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Camera returns frame_id in response', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('frame_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /health - Camera Stream mock smoke (consumer-side)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{cameraBaseUrl}}/health",
+              "host": ["{{cameraBaseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Consumer-side: verify Camera Stream mock is reachable from Docker network."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Camera Stream mock health returns 200', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06_Local_only_NonFunctional",
+      "item": [
+        {
+          "name": "POST /vision/detect - latency < 5000ms (real Docker service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "detect"]
+            },
+            "description": "Latency SLA: service Docker phải xử lý trong 5 giây. Mock không có ý nghĩa latency.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"cam-lab05-gate\",\n  \"image_url\": \"http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest\",\n  \"timestamp\": \"2026-08-25T09:00:00Z\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Detect latency < 5000ms on Docker service', function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /health - latency < 500ms (real Docker service)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Health endpoint SLA: phải phản hồi dưới 500ms."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health latency < 500ms on Docker service', function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test('Health returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /vision/results/recent - latency < 2000ms (real Docker service)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vision/results/recent?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["vision", "results", "recent"],
+              "query": [
+                {"key": "limit", "value": "20"}
+              ]
+            },
+            "description": "Paginated query must be fast even with large in-memory store."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Recent results latency < 2000ms', function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

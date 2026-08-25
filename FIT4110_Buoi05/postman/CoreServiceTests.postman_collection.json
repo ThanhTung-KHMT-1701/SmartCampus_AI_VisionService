@@ -1,0 +1,269 @@
+{
+	"info": {
+		"_postman_id": "core-business-api-tests",
+		"name": "Core Business API - AI Vision Tests",
+		"description": "Test collection for Core Business Service API endpoints. Used by AI Vision team to verify integration.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{bearerToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function() {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test('Response has status ok', function() {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('ok');",
+							"});",
+							"pm.test('Service name is core-business', function() {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.service).to.eql('core-business');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/health",
+					"host": ["{{baseUrl}}"],
+					"path": ["health"]
+				}
+			}
+		},
+		{
+			"name": "Create Alert",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 201', function() {",
+							"    pm.response.to.have.status(201);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"sourceService\": \"ai-vision\",\n    \"alertType\": \"intrusion_detected\",\n    \"severity\": \"HIGH\",\n    \"message\": \"AI Vision detected unauthorized person at gate\",\n    \"relatedEventId\": \"evt-20260825-001\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/alerts",
+					"host": ["{{baseUrl}}"],
+					"path": ["alerts"]
+				}
+			}
+		},
+		{
+			"name": "List Alerts",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function() {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/alerts?limit=5",
+					"host": ["{{baseUrl}}"],
+					"path": ["alerts"],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Get Recent Alerts",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function() {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/alerts/recent?limit=3",
+					"host": ["{{baseUrl}}"],
+					"path": ["alerts", "recent"],
+					"query": [
+						{
+							"key": "limit",
+							"value": "3"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Check Access",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function() {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"cardId\": \"CARD-001\",\n    \"gateId\": \"gate-main-entrance\",\n    \"direction\": \"in\",\n    \"idempotencyKey\": \"req-20260825-001\",\n    \"timestamp\": \"2026-08-25T10:30:00Z\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/access/check",
+					"host": ["{{baseUrl}}"],
+					"path": ["access", "check"]
+				}
+			}
+		},
+		{
+			"name": "Ingest Event",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 201', function() {",
+							"    pm.response.to.have.status(201);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"eventType\": \"face.recognition.completed\",\n    \"eventId\": \"evt-face-001\",\n    \"sourceService\": \"ai-vision\",\n    \"payload\": {\n        \"cameraId\": \"cam-gate-01\",\n        \"detectionId\": \"det-001\",\n        \"matched\": true,\n        \"confidence\": 0.95\n    }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/events",
+					"host": ["{{baseUrl}}"],
+					"path": ["events"]
+				}
+			}
+		},
+		{
+			"name": "Check All LAN Integrations",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function() {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/integrations/status",
+					"host": ["{{baseUrl}}"],
+					"path": ["integrations", "status"]
+				}
+			}
+		},
+		{
+			"name": "Check AI Vision Integration Health",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function() {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/integrations/ai-vision/health",
+					"host": ["{{baseUrl}}"],
+					"path": ["integrations", "ai-vision", "health"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://192.168.137.79:8001"
+		},
+		{
+			"key": "bearerToken",
+			"value": "YOUR_BEARER_TOKEN_HERE"
+		}
+	]
+}

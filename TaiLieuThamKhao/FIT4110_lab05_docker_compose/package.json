@@ -1,0 +1,18 @@
+{
+  "name": "fit4110-lab05-docker-compose-readiness",
+  "version": "0.1.0",
+  "description": "FIT4110 Lab 05 - Docker Compose readiness and end-to-end verification for Smart Campus services",
+  "private": true,
+  "scripts": {
+    "mock:iot": "prism mock contracts/iot-ingestion.openapi.yaml --host 0.0.0.0 --port 4010",
+    "lint:openapi": "spectral lint contracts/*.yaml",
+    "test:compose": "echo 'TODO: copy Postman collection from Lab 04 into postman/collections and update this script.'"
+  },
+  "devDependencies": {
+    "@stoplight/prism-cli": "^5.10.0",
+    "@stoplight/spectral-cli": "^6.13.1",
+    "newman": "^6.2.1",
+    "newman-reporter-htmlextra": "^1.23.1",
+    "wait-on": "^8.0.1"
+  }
+}

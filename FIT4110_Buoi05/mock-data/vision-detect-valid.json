@@ -1,0 +1,6 @@
+{
+  "camera_id": "cam-lab05-gate",
+  "image_url": "http://192.168.137.115:8001/cameras/cam-lab05-gate/frames/latest",
+  "timestamp": "2026-08-25T08:00:00Z",
+  "confidence_threshold": 0.6
+}
