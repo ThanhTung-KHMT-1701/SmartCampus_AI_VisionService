@@ -1,0 +1,91 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Smart Campus — Service Mock Docker Compose
+#
+#  Kiến trúc:
+#    Camera Stream (Port 5000) → AI Vision Gateway (Port 8000) → Core Business (Port 6000)
+#
+#  Services:
+#    1. camera-stream-mock   : Port 5000 - Gửi frames đến AI Vision
+#    2. core-business-mock   : Port 6000 - Nhận kết quả từ AI Vision
+#
+#  Network:
+#    - class-net: Kết nối với AI Vision Gateway
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  Camera Stream Mock — Gửi frames đến AI Vision (upstream)
+  # ═══════════════════════════════════════════════════════════════════════════
+  camera-stream-mock:
+    build:
+      context: ./camera-stream
+      dockerfile: Dockerfile
+    image: smartcampus/camera-stream-mock:1.0.0
+    container_name: smartcampus-camera-stream-mock
+    restart: unless-stopped
+    environment:
+      # AI Vision Gateway URL
+      AI_VISION_URL: http://ai-vision-gateway:8000
+      AI_VISION_TOKEN: ${AI_VISION_TOKEN:-smartcampus-vision-2026-secure-token}
+      
+      # Camera configuration
+      CAMERA_ID: cam-entrance-mock-01
+      STREAM_INTERVAL: ${STREAM_INTERVAL:-10}  # Send frame every 10s
+    networks:
+      - class-net
+    ports:
+      - "${CAMERA_STREAM_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "com.smartcampus.service=camera-stream"
+      - "com.smartcampus.description=Camera Stream Mock Service"
+      - "com.smartcampus.port=5000"
+      - "com.smartcampus.role=upstream"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  Core Business Mock — Nhận kết quả từ AI Vision (downstream)
+  # ═══════════════════════════════════════════════════════════════════════════
+  core-business-mock:
+    build:
+      context: ./core-business
+      dockerfile: Dockerfile
+    image: smartcampus/core-business-mock:1.0.0
+    container_name: smartcampus-core-business-mock
+    restart: unless-stopped
+    environment:
+      # AI Vision Gateway URL
+      AI_VISION_URL: http://ai-vision-gateway:8000
+      AI_VISION_TOKEN: ${AI_VISION_TOKEN:-smartcampus-vision-2026-secure-token}
+      
+      # Polling configuration
+      POLL_INTERVAL: ${POLL_INTERVAL:-15}  # Poll every 15s
+    networks:
+      - class-net
+    ports:
+      - "${CORE_BUSINESS_PORT:-6000}:6000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "com.smartcampus.service=core-business"
+      - "com.smartcampus.description=Core Business Mock Service"
+      - "com.smartcampus.port=6000"
+      - "com.smartcampus.role=downstream"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Networks
+# ═══════════════════════════════════════════════════════════════════════════
+networks:
+  class-net:
+    external: true
+    name: class-net
