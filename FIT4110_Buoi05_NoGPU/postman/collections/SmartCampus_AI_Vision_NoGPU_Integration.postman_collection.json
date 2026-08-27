@@ -1,0 +1,338 @@
+{
+  "info": {
+    "name": "SmartCampus AI Vision NoGPU - Integration Tests",
+    "description": "Comprehensive API tests for SmartCampus AI Vision Service (No GPU)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345678"
+  },
+  "item": [
+    {
+      "name": "Gateway Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('status');",
+              "    pm.expect(jsonData).to.have.property('service');",
+              "    pm.expect(jsonData).to.have.property('version');",
+              "    pm.expect(jsonData).to.have.property('time');",
+              "    pm.expect(jsonData.status).to.eql('ok');",
+              "});",
+              "",
+              "pm.test('Response time is less than 500ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(500);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{gateway_url}}/health",
+          "host": ["{{gateway_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Get Model Info",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Has model information', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('model_id');",
+              "    pm.expect(jsonData).to.have.property('model_type');",
+              "    pm.expect(jsonData).to.have.property('classes');",
+              "});",
+              "",
+              "pm.test('Classes is an array', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.classes).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{gateway_url}}/vision/models/info",
+          "host": ["{{gateway_url}}"],
+          "path": ["vision", "models", "info"]
+        }
+      }
+    },
+    {
+      "name": "Detect Objects - Valid Image URL",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has detection results', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detection_id');",
+              "    pm.expect(jsonData).to.have.property('detections');",
+              "    pm.expect(jsonData).to.have.property('processing_time_ms');",
+              "    pm.expect(jsonData).to.have.property('timestamp');",
+              "});",
+              "",
+              "pm.test('Detections is an array', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.detections).to.be.an('array');",
+              "});",
+              "",
+              "pm.test('Processing time is reasonable', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.processing_time_ms).to.be.below(30000);",
+              "});",
+              "",
+              "pm.collectionVariables.set('detection_id', pm.response.json().detection_id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"image_url\": \"https://ultralytics.com/images/bus.jpg\",\n  \"confidence_threshold\": 0.5,\n  \"camera_id\": \"camera-01\",\n  \"timestamp\": \"{{$isoTimestamp}}\"\n}"
+        },
+        "url": {
+          "raw": "{{gateway_url}}/vision/detect",
+          "host": ["{{gateway_url}}"],
+          "path": ["vision", "detect"]
+        }
+      }
+    },
+    {
+      "name": "Get Recent Detections",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has items array', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('items');",
+              "    pm.expect(jsonData.items).to.be.an('array');",
+              "});",
+              "",
+              "pm.test('Has pagination info', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('hasMore');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{gateway_url}}/vision/results/recent?limit=10",
+          "host": ["{{gateway_url}}"],
+          "path": ["vision", "results", "recent"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Detection by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has detection details', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detection_id');",
+              "    pm.expect(jsonData).to.have.property('detections');",
+              "});",
+              "",
+              "pm.test('Detection ID matches', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.detection_id).to.eql(pm.collectionVariables.get('detection_id'));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{gateway_url}}/vision/detections/{{detection_id}}",
+          "host": ["{{gateway_url}}"],
+          "path": ["vision", "detections", "{{detection_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Detect Objects - Invalid Auth",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 401 or 422', function () {",
+              "    pm.expect([401, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "pm.test('Error message is present', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detail');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid-token",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"image_url\": \"https://ultralytics.com/images/bus.jpg\",\n  \"camera_id\": \"camera-01\",\n  \"timestamp\": \"{{$isoTimestamp}}\"\n}"
+        },
+        "url": {
+          "raw": "{{gateway_url}}/vision/detect",
+          "host": ["{{gateway_url}}"],
+          "path": ["vision", "detect"]
+        }
+      }
+    },
+    {
+      "name": "Detect Objects - Invalid Image URL",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400, 422, or 502', function () {",
+              "    pm.expect([400, 422, 502]).to.include(pm.response.code);",
+              "});",
+              "",
+              "pm.test('Error message is present', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detail');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{auth_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"image_url\": \"https://invalid-domain-12345.com/invalid.jpg\",\n  \"camera_id\": \"camera-01\",\n  \"confidence_threshold\": 0.5,\n  \"timestamp\": \"{{$isoTimestamp}}\"\n}"
+        },
+        "url": {
+          "raw": "{{gateway_url}}/vision/detect",
+          "host": ["{{gateway_url}}"],
+          "path": ["vision", "detect"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "detection_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

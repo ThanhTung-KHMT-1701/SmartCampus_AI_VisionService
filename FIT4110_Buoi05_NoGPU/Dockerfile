@@ -36,10 +36,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 ENV APP_HOST=0.0.0.0 \
     APP_PORT=8000 \
     PYTHONPATH=/app/src \
-    AI_VISION_AUTH_TOKEN=local-dev-token-vision \
-    SERVICE_NAME=ai-vision \
-    SERVICE_VERSION=0.5.0 \
-    VISION_DB_PATH=/data/vision.db \
     YOLO_WEIGHTS_PATH=/app/yolov8n.pt \
     LOG_LEVEL=INFO
 

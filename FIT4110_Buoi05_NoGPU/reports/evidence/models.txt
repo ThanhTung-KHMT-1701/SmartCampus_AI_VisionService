@@ -1,1 +1,0 @@
-models: id=yolov8n-cpu-v1.0 status=ACTIVE classes=8

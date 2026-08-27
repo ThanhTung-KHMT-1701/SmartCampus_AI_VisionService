@@ -1,1 +1,0 @@
-get-by-id: ok cam=cam-gate-01 match=True

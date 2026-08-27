@@ -1,71 +1,164 @@
-name: smartcampus-vision-lab05
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Smart Campus AI Vision Service - Docker Compose Configuration (NoGPU)
+#  
+#  Kiến trúc:
+#    - Gateway (ai-vision-gateway): Port 8000 - Duy nhất cổng ra ngoài
+#    - AI Vision Internal (ai-vision-internal): Port 9000 - Chỉ trong mạng nội bộ
+#    - MySQL Database: Port 3306 - Chỉ trong mạng nội bộ
+#
+#  Networks:
+#    - ai_vision-net: Mạng nội bộ (MySQL, AI Vision Internal, Gateway backend)
+#    - class-net: Mạng ngoài (Gateway frontend, ServiceMock connections)
+# ═══════════════════════════════════════════════════════════════════════════════
 
 services:
-  # ── MySQL 8.0 Database ──────────────────────────────────────────────────────
-  mysql:
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MySQL Database — Lưu trữ detection results và face match history
+  # ═══════════════════════════════════════════════════════════════════════════
+  ai-vision-database:
     image: mysql:8.0
-    container_name: fit4110-mysql-lab05
+    container_name: ${CONTAINER_MYSQL:-smartcampus-ai-vision-mysql-nogpu}
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-SmartCampus2026Secure}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_vision_db}
-    ports:
-      - "3307:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./database:/docker-entrypoint-initdb.d
+      - ai_vision_mysql_data:/var/lib/mysql
+      - ./database/01-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - ai_vision-net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-SmartCampus2026Secure}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     command: --default-authentication-plugin=mysql_native_password
-    networks:
-      - team-internal
+    labels:
+      - "com.smartcampus.service=database"
+      - "com.smartcampus.description=MySQL Database for AI Vision"
 
-  # ── AI Vision FastAPI — YOLO chạy in-process, port 8000 ra host ─────────
-  ai-vision:
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  AI Vision Internal — Core AI processing (YOLO in-process, NoGPU)
+  # ═══════════════════════════════════════════════════════════════════════════
+  ai-vision-internal:
     build:
       context: .
       dockerfile: Dockerfile
-    image: fit4110/ai-vision:lab05
-    container_name: fit4110-ai-vision-lab05
+    container_name: ${CONTAINER_AI_VISION_INTERNAL:-smartcampus-ai-vision-internal-nogpu}
+    image: ${IMAGE_AI_VISION_INTERNAL:-smartcampus/ai-vision-internal-nogpu:1.0.0}
     restart: unless-stopped
-    env_file:
-      - .env.example
+    working_dir: /app
     environment:
+      # ── AI Model Configuration ──
       APP_HOST: 0.0.0.0
-      APP_PORT: "8000"
-      AI_VISION_AUTH_TOKEN: ${AI_VISION_AUTH_TOKEN:-local-dev-token-vision}
-      SERVICE_VERSION: "0.5.0"
-      # MySQL connection
-      MYSQL_HOST: mysql
+      APP_PORT: "9000"
+      AI_VISION_AUTH_TOKEN: ${AI_VISION_AUTH_TOKEN:-smartcampus-vision-2026-secure-token}
+      SERVICE_NAME: ai-vision-internal
+      SERVICE_VERSION: "1.0.0"
+      
+      # ── MySQL Database Connection ──
+      MYSQL_HOST: ai-vision-database
       MYSQL_PORT: "3306"
       MYSQL_USER: root
-      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-SmartCampus2026Secure}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_vision_db}
-    ports:
-      - "8000:8000"
+      
+      # ── YOLO Configuration ──
+      YOLO_MODEL_NAME: yolov8n
+      YOLO_INPUT_SIZE: "640"
+      YOLO_CONFIDENCE_DEFAULT: "0.5"
     depends_on:
-      mysql:
+      ai-vision-database:
         condition: service_healthy
+    networks:
+      - ai_vision-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "com.smartcampus.service=ai-internal"
+      - "com.smartcampus.description=AI Vision Internal Service - YOLO NoGPU"
+      - "com.smartcampus.port=9000"
+      - "com.smartcampus.access=internal-only"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  AI Vision Gateway — API Gateway với Authentication
+  # ═══════════════════════════════════════════════════════════════════════════
+  ai-vision-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    image: ${IMAGE_AI_VISION_GATEWAY:-smartcampus/ai-vision-gateway-nogpu:1.0.0}
+    container_name: ${CONTAINER_AI_VISION_GATEWAY:-smartcampus-ai-vision-gateway-nogpu}
+    restart: unless-stopped
+    environment:
+      # ── MySQL Database Connection ──
+      MYSQL_HOST: ai-vision-database
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-SmartCampus2026Secure}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_vision_db}
+      
+      # ── Internal AI Service URL ──
+      AI_VISION_INTERNAL_URL: http://ai-vision-internal:9000
+      
+      # ── Gateway Configuration ──
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8000"
+      AI_VISION_AUTH_TOKEN: ${AI_VISION_AUTH_TOKEN:-smartcampus-vision-2026-secure-token}
+      SERVICE_NAME: ai-vision-gateway
+      SERVICE_VERSION: "1.0.0"
+    depends_on:
+      ai-vision-database:
+        condition: service_healthy
+      ai-vision-internal:
+        condition: service_healthy
+    networks:
+      - ai_vision-net
+      - class-net
+    ports:
+      - "${APP_PORT:-8000}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
-    networks:
-      - team-internal
+      start_period: 20s
+    labels:
+      - "com.smartcampus.service=gateway"
+      - "com.smartcampus.description=AI Vision API Gateway"
+      - "com.smartcampus.port=8000"
+      - "com.smartcampus.access=public"
+      - "com.smartcampus.role=entrypoint"
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  Networks Configuration
+# ═══════════════════════════════════════════════════════════════════════════
 networks:
-  team-internal:
-    name: smartcampus-vision-team-internal
+  ai_vision-net:
     driver: bridge
+    name: ai_vision-net
+    labels:
+      - "com.smartcampus.network=internal"
+      - "com.smartcampus.description=Internal network for AI Vision services"
+  
   class-net:
-    name: smartcampus-class-net
-    external: true
+    driver: bridge
+    name: class-net
+    labels:
+      - "com.smartcampus.network=external"
+      - "com.smartcampus.description=External network for classroom services"
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  Volumes Configuration
+# ═══════════════════════════════════════════════════════════════════════════
 volumes:
-  mysql_data:
+  ai_vision_mysql_data:
+    name: smartcampus_ai_vision_mysql_data_nogpu
+    labels:
+      - "com.smartcampus.volume=database"
+      - "com.smartcampus.description=Persistent MySQL data for AI Vision NoGPU"
