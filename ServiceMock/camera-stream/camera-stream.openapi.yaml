@@ -1,0 +1,253 @@
+﻿openapi: 3.1.0
+info:
+  title: Camera Stream Service API
+  version: 1.0.0
+  description: |
+    Service nhận dữ liệu từ camera, quản lý frame ảnh/video stream,
+    và gọi AI Vision khi phát hiện điều kiện cần phân tích.
+    
+    **Product:** A
+    **Team:** Camera Stream
+  contact:
+    name: Camera Stream Team
+    email: camera-stream@smartcampus.edu.vn
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: http://camera-stream:8000
+    description: Docker network
+
+tags:
+  - name: Camera Management
+    description: Quản lý thông tin camera
+  - name: Frame Management
+    description: Upload và quản lý frame ảnh
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Kiểm tra trạng thái service
+      description: Endpoint kiểm tra service còn hoạt động.
+      tags: [Camera Management]
+      security: []
+      responses:
+        '200':
+          description: Service đang hoạt động
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                    example: ok
+                  service:
+                    type: string
+                    example: camera-stream-service
+                  time:
+                    type: string
+                    format: date-time
+                    example: '2026-08-13T10:00:00Z'
+              example:
+                status: ok
+                service: camera-stream-service
+                time: '2026-08-13T10:00:00Z'
+
+  /cameras:
+    get:
+      operationId: getCameras
+      summary: Lấy danh sách camera
+      description: Trả về danh sách tất cả camera trong hệ thống.
+      tags: [Camera Management]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, inactive, all]
+            default: all
+          description: Lọc camera theo trạng thái
+      responses:
+        '200':
+          description: Danh sách camera
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    camera_id:
+                      type: string
+                      example: cam-gate-01
+                    name:
+                      type: string
+                      example: Cổng chính
+                    status:
+                      type: string
+                      enum: [active, inactive, maintenance]
+                      example: active
+                    location:
+                      type: string
+                      nullable: true
+                      example: Khu vực cổng chính
+                    ip_address:
+                      type: string
+                      nullable: true
+                      example: 192.168.1.100
+                    stream_url:
+                      type: string
+                      nullable: true
+                      example: rtsp://192.168.1.100:554/stream
+              example:
+                - camera_id: cam-gate-01
+                  name: Cổng chính
+                  status: active
+                  location: Khu vực cổng chính
+                  ip_address: 192.168.1.100
+                  stream_url: rtsp://192.168.1.100:554/stream
+                - camera_id: cam-parking-01
+                  name: Bãi đỗ xe
+                  status: active
+                  location: Khu vực bãi đỗ xe
+                  ip_address: 192.168.1.101
+                  stream_url: rtsp://192.168.1.101:554/stream
+        '500':
+          description: Lỗi server
+
+  /cameras/{cameraId}:
+    get:
+      operationId: getCameraById
+      summary: Lấy chi tiết camera
+      description: Trả về thông tin chi tiết của một camera.
+      tags: [Camera Management]
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^cam-[a-z0-9-]+$'
+          description: Mã định danh của camera
+      responses:
+        '200':
+          description: Thông tin camera
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  camera_id:
+                    type: string
+                    example: cam-gate-01
+                  name:
+                    type: string
+                    example: Cổng chính
+                  status:
+                    type: string
+                    enum: [active, inactive, maintenance]
+                    example: active
+                  location:
+                    type: string
+                    nullable: true
+                    example: Khu vực cổng chính
+                  ip_address:
+                    type: string
+                    nullable: true
+                    example: 192.168.1.100
+                  stream_url:
+                    type: string
+                    nullable: true
+                    example: rtsp://192.168.1.100:554/stream
+              example:
+                camera_id: cam-gate-01
+                name: Cổng chính
+                status: active
+                location: Khu vực cổng chính
+                ip_address: 192.168.1.100
+                stream_url: rtsp://192.168.1.100:554/stream
+        '404':
+          description: Không tìm thấy camera
+        '500':
+          description: Lỗi server
+
+  /frames:
+    post:
+      operationId: uploadFrame
+      summary: Upload frame ảnh
+      description: Nhận frame ảnh từ camera và lưu vào hệ thống.
+      tags: [Frame Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - camera_id
+                - image_url
+                - timestamp
+              properties:
+                camera_id:
+                  type: string
+                  example: cam-gate-01
+                image_url:
+                  type: string
+                  format: uri
+                  example: https://storage.smartcampus.edu.vn/frames/frame.jpg
+                motion_detected:
+                  type: boolean
+                  default: false
+                  example: true
+                timestamp:
+                  type: string
+                  format: date-time
+                  example: '2026-08-13T09:05:00Z'
+                metadata:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  nullable: true
+                  example:
+                    resolution: "1920x1080"
+                    fps: "30"
+      responses:
+        '202':
+          description: Frame đã được nhận
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - frame_id
+                  - status
+                  - timestamp
+                properties:
+                  frame_id:
+                    type: string
+                    example: frame-20260813-090500-abc123
+                  status:
+                    type: string
+                    enum: [accepted, rejected]
+                    example: accepted
+                  message:
+                    type: string
+                    nullable: true
+                    example: Frame accepted for processing
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2026-08-13T09:05:01Z'
+              example:
+                frame_id: frame-20260813-090500-abc123
+                status: accepted
+                message: Frame accepted for processing
+                timestamp: '2026-08-13T09:05:01Z'
+        '400':
+          description: Dữ liệu sai định dạng
+        '500':
+          description: Lỗi server

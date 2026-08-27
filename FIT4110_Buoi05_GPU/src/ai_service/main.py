@@ -55,7 +55,7 @@ def _load_yolo() -> YOLO:
         device = _get_device()
         print(f"[ai-service] Loading YOLO from '{YOLO_MODEL_PATH}' on {device}")
         _yolo_model = YOLO(YOLO_MODEL_PATH)
-        _yolo_model.to(device)
+        _yolo_model = _yolo_model.to(device)
         print(f"[ai-service] YOLO loaded. CUDA={torch.cuda.is_available()}")
     return _yolo_model
 

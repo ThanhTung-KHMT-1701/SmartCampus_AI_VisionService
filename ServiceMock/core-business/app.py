@@ -1,13 +1,26 @@
 """
 Core Business Mock Service
 ===========================
-Mô phỏng Core Business Service nhận và xử lý kết quả detection từ AI Vision.
+Mô phỏng Core Business Service theo hợp đồng chính thức.
+
+Hợp đồng: ServiceMock/core-business/core-business.openapi.yaml
+Endpoints chính:
+  - GET  /health
+  - POST /alerts                        Tạo cảnh báo
+  - GET  /alerts                        Danh sách có pagination
+  - GET  /alerts/recent                 Cảnh báo gần đây
+  - GET  /alerts/{alertId}              Chi tiết
+  - POST /events                        Sensor/Access event
+  - POST /access/check                  Check policy ra/vào realtime
+  - GET  /policies/access/{policyId}    Lấy policy
+  - GET  /decisions/{decisionId}        Audit decision
 
 Flow:
-1. Expose API để AI Vision hoặc các service khác query kết quả
-2. Poll AI Vision Service để lấy recent detections
-3. Xử lý business logic dựa trên risk_level
-4. Log và expose dashboard
+  1. Background poll AI Vision mỗi POLL_INTERVAL giây
+  2. Mỗi detection từ AI Vision -> tạo Alert + push vào in-memory store
+  3. Risk HIGH/CRITICAL -> alertType=UNKNOWN_PERSON
+  4. Risk MEDIUM         -> alertType=SYSTEM_ERROR
+  5. Risk LOW            -> không tạo alert (chỉ log)
 """
 
 import os
@@ -16,13 +29,13 @@ import uuid
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from enum import Enum
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import uvicorn
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -31,7 +44,9 @@ import uvicorn
 
 AI_VISION_URL = os.getenv("AI_VISION_URL", "http://ai-vision-gateway:8000")
 AI_VISION_TOKEN = os.getenv("AI_VISION_TOKEN", "smartcampus-vision-2026-secure-token")
-POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "15"))  # seconds
+POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "15"))
+# Bearer token consumer gọi Core Business (đối tác cung cấp, mặc định lab)
+CORE_BUSINESS_TOKEN = os.getenv("CORE_BUSINESS_TOKEN", "local-dev-token-vision")
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Logging
@@ -44,38 +59,128 @@ logging.basicConfig(
 logger = logging.getLogger("core-business")
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  Data Models
+#  Constants from OpenAPI contract
 # ═══════════════════════════════════════════════════════════════════════════
 
-class RiskLevel(str, Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    CRITICAL = "CRITICAL"
+AlertSeverity = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+AlertType = Literal[
+    "UNAUTHORIZED_ACCESS",
+    "SENSOR_THRESHOLD_EXCEEDED",
+    "UNKNOWN_PERSON",
+    "SYSTEM_ERROR",
+]
+AlertStatus = Literal["OPEN", "ACKNOWLEDGED", "RESOLVED"]
 
-class ActionType(str, Enum):
-    NONE = "NONE"
-    LOG = "LOG"
-    ALERT = "ALERT"
-    ESCALATE = "ESCALATE"
 
-class DetectionRecord(BaseModel):
-    detection_id: str
-    camera_id: str
-    detections_count: int
-    risk_level: RiskLevel
-    model_version: str
+# ═══════════════════════════════════════════════════════════════════════════
+#  Pydantic Schemas (theo core-business.openapi.yaml)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class HealthStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["ok"]
+    service: str
+    time: str
+
+
+class CreateAlertRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sourceService: str = Field(..., min_length=2, max_length=80, pattern=r"^[a-z0-9-]+$")
+    alertType: AlertType
+    severity: AlertSeverity
+    message: str = Field(..., min_length=5, max_length=500)
+    relatedEventId: Optional[str] = Field(None)
+
+
+class Alert(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    sourceService: str
+    alertType: AlertType
+    severity: AlertSeverity
+    message: str
+    relatedEventId: Optional[str] = None
+    status: AlertStatus = "OPEN"
+    createdAt: str
+    resolvedAt: Optional[str] = None
+
+
+class AlertPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    items: List[Alert]
+    nextCursor: Optional[str] = None
+    hasMore: bool
+
+
+class RecentAlertsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    items: List[Alert]
+
+
+class EventAccepted(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    eventId: str
+    acceptedAt: str
+
+
+class SensorEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    eventType: Literal["sensor.reading.created", "sensor.threshold.exceeded"]
+    eventId: str
+    occurredAt: str
+    correlationId: str
+    source: Literal["iot-ingestion"]
+    deviceId: str = Field(..., pattern=r"^SENSOR-[0-9]{3}$")
+    metric: Literal["temperature", "humidity", "smoke", "motion"]
+    value: float = Field(..., ge=-100, le=1000)
+    unit: str = Field(..., min_length=1, max_length=20)
+    locationId: str
+
+
+class AccessEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    eventType: Literal["ACCESS_CHECK"]
+    eventId: str
+    gateId: str = Field(..., pattern=r"^GATE-[0-9]{2}$")
+    cardId: str = Field(..., pattern=r"^RFID-[0-9]{4}-[0-9]{3}$")
+    decision: Literal["ALLOW", "DENY"]
     timestamp: str
-    received_at: str
-    action_taken: ActionType
-    notes: Optional[str] = None
 
-class BusinessMetrics(BaseModel):
-    total_detections: int
-    by_risk_level: Dict[str, int]
-    by_action: Dict[str, int]
-    last_poll_at: Optional[str]
-    poll_active: bool
+
+class AccessCheckRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cardId: str = Field(..., pattern=r"^RFID-[0-9]{4}-[0-9]{3}$")
+    gateId: str = Field(..., pattern=r"^GATE-[0-9]{2}$")
+    direction: Literal["IN", "OUT"]
+    idempotencyKey: str
+    timestamp: str
+
+
+class AccessDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decisionId: str
+    cardId: str
+    gateId: str
+    result: Literal["ALLOW", "DENY"]
+    reasonCode: Literal[
+        "VALID_CARD", "EXPIRED_CARD", "BLACKLISTED",
+        "OUTSIDE_TIME_WINDOW", "UNKNOWN_CARD", "POLICY_DENY",
+    ]
+    policyId: Optional[str] = None
+    evaluatedAt: str
+    expiresAt: Optional[str] = None
+
+
+class AccessPolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    policyId: str = Field(..., pattern=r"^POL-[0-9]{3}$")
+    name: str = Field(..., min_length=3, max_length=120)
+    effect: Literal["ALLOW", "DENY"]
+    status: Literal["ACTIVE", "INACTIVE"]
+    description: Optional[str] = Field(None, max_length=500)
+    timeWindow: Optional[Dict[str, str]] = None
+    allowedGates: Optional[List[str]] = None
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Application State
@@ -84,141 +189,160 @@ class BusinessMetrics(BaseModel):
 app = FastAPI(
     title="Core Business Mock Service",
     version="1.0.0",
-    description="Mock service mô phỏng Core Business nhận kết quả từ AI Vision"
+    description="Mock theo hợp đồng core-business.openapi.yaml",
 )
 
-# In-memory storage
-detection_records: List[DetectionRecord] = []
+# In-memory stores
+alerts_store: List[Alert] = []
+events_log: List[Dict[str, Any]] = []
+decisions_store: Dict[str, AccessDecision] = {}
+idempotency_keys: set = set()
+
 stats = {
     "total_detections": 0,
     "risk_level_counts": {"LOW": 0, "MEDIUM": 0, "HIGH": 0, "CRITICAL": 0},
-    "action_counts": {"NONE": 0, "LOG": 0, "ALERT": 0, "ESCALATE": 0},
+    "alert_counts": {"OPEN": 0, "ACKNOWLEDGED": 0, "RESOLVED": 0},
     "last_poll_at": None,
     "poll_active": False,
-    "last_cursor": None
+    "last_cursor": None,
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  Business Logic
+#  Auth dependency (Bearer token)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def determine_action(risk_level: RiskLevel, detections_count: int) -> ActionType:
-    """Xác định hành động dựa trên risk level và số lượng objects"""
-    if risk_level == RiskLevel.CRITICAL:
-        return ActionType.ESCALATE
-    elif risk_level == RiskLevel.HIGH:
-        return ActionType.ALERT
-    elif risk_level == RiskLevel.MEDIUM and detections_count > 5:
-        return ActionType.ALERT
-    elif risk_level == RiskLevel.LOW and detections_count > 0:
-        return ActionType.LOG
-    else:
-        return ActionType.NONE
+def require_bearer(authorization: Optional[str] = Header(None)) -> None:
+    """Verify Bearer token trừ khi path là /health."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Thiếu Bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = authorization.split(" ", 1)[1].strip()
+    if token != CORE_BUSINESS_TOKEN:
+        raise HTTPException(
+            status_code=401,
+            detail="Token không hợp lệ",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-def process_detection(detection_data: Dict[str, Any]) -> DetectionRecord:
-    """Xử lý 1 detection result từ AI Vision"""
-    detection_id = detection_data.get("detection_id")
-    camera_id = detection_data.get("camera_id")
-    detections = detection_data.get("detections", [])
-    risk_level = RiskLevel(detection_data.get("risk_level", "LOW"))
-    model_version = detection_data.get("model_version", "unknown")
-    timestamp = detection_data.get("timestamp")
-    
-    # Business logic: quyết định action
-    action = determine_action(risk_level, len(detections))
-    
-    # Tạo notes dựa trên action
-    notes = None
-    if action == ActionType.ESCALATE:
-        notes = f"⚠️ CRITICAL: {len(detections)} objects detected with HIGH risk - Security team notified"
-    elif action == ActionType.ALERT:
-        notes = f"🔔 ALERT: {len(detections)} objects detected - Monitoring team notified"
-    elif action == ActionType.LOG:
-        notes = f"📝 LOG: {len(detections)} objects detected - Normal activity"
-    
-    record = DetectionRecord(
-        detection_id=detection_id,
-        camera_id=camera_id,
-        detections_count=len(detections),
-        risk_level=risk_level,
-        model_version=model_version,
-        timestamp=timestamp,
-        received_at=datetime.now(timezone.utc).isoformat(),
-        action_taken=action,
-        notes=notes
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Business Logic: AI Vision -> Alert mapping
+# ═══════════════════════════════════════════════════════════════════════════
+
+def risk_to_alert_type(risk_level: str) -> AlertType:
+    """Theo hợp đồng, AI Vision risk level map sang AlertType enum."""
+    mapping = {
+        "CRITICAL": "UNAUTHORIZED_ACCESS",
+        "HIGH": "UNKNOWN_PERSON",
+        "MEDIUM": "SYSTEM_ERROR",
+        "LOW": "SYSTEM_ERROR",
+    }
+    return mapping.get(risk_level, "SYSTEM_ERROR")
+
+
+def detection_to_alert(detection: Dict[str, Any]) -> Optional[Alert]:
+    """
+    Tạo Alert từ AI Vision detection.
+    Chỉ tạo alert khi risk >= MEDIUM (LOW bỏ qua để giảm noise).
+    """
+    risk = detection.get("risk_level", "LOW")
+    if risk == "LOW":
+        return None
+
+    detection_id = detection.get("detection_id", str(uuid.uuid4()))
+    camera_id = detection.get("camera_id", "unknown")
+    detections = detection.get("detections", [])
+    n = len(detections)
+
+    message = (
+        f"Phát hiện {n} đối tượng tại camera {camera_id} "
+        f"với mức rủi ro {risk}"
     )
-    
-    return record
+
+    return Alert(
+        id=detection_id,
+        sourceService="ai-vision-gateway",
+        alertType=risk_to_alert_type(risk),
+        severity=risk,
+        message=message,
+        relatedEventId=detection_id,
+        status="OPEN",
+        createdAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        resolvedAt=None,
+    )
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Core Functions
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def poll_ai_vision():
-    """Poll AI Vision Service để lấy recent detections"""
+    """Poll AI Vision Service để lấy recent detections, sau đó sinh Alert."""
     headers = {
         "Authorization": f"Bearer {AI_VISION_TOKEN}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-    
-    params = {
-        "limit": 10
-    }
-    
-    # Nếu có cursor từ lần poll trước, dùng nó để tiếp tục
+    params: Dict[str, Any] = {"limit": 10}
     if stats["last_cursor"]:
         params["cursor"] = stats["last_cursor"]
-    
+
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"{AI_VISION_URL}/vision/results/recent",
                 params=params,
-                headers=headers
+                headers=headers,
             )
-            
-            if response.status_code == 200:
-                data = response.json()
-                items = data.get("items", [])
-                has_more = data.get("hasMore", False)
-                next_cursor = data.get("nextCursor")
-                
-                logger.info(f"📥 Polled AI Vision: {len(items)} new detections, hasMore={has_more}")
-                
-                # Process mỗi detection
-                for item in items:
-                    record = process_detection(item)
-                    detection_records.append(record)
-                    
-                    # Update stats
-                    stats["total_detections"] += 1
-                    stats["risk_level_counts"][record.risk_level.value] += 1
-                    stats["action_counts"][record.action_taken.value] += 1
-                    
-                    logger.info(f"  ✓ {record.detection_id[:8]}... | {record.camera_id} | Risk={record.risk_level.value} | Action={record.action_taken.value}")
-                
-                # Update cursor cho lần poll tiếp theo
-                stats["last_cursor"] = next_cursor
-                stats["last_poll_at"] = datetime.now(timezone.utc).isoformat()
-                
-                # Giữ tối đa 200 records trong memory
-                if len(detection_records) > 200:
-                    detection_records[:] = detection_records[-200:]
-                
-                return len(items)
-            else:
+            if response.status_code != 200:
                 logger.error(f"❌ Poll failed: HTTP {response.status_code}")
                 return 0
-                
+
+            data = response.json()
+            items = data.get("items", [])
+            has_more = data.get("hasMore", False)
+            next_cursor = data.get("nextCursor")
+
+            logger.info(f"📥 Polled AI Vision: {len(items)} detections, hasMore={has_more}")
+
+            for item in items:
+                stats["total_detections"] += 1
+                risk = item.get("risk_level", "LOW")
+                if risk in stats["risk_level_counts"]:
+                    stats["risk_level_counts"][risk] += 1
+
+                alert = detection_to_alert(item)
+                if alert:
+                    alerts_store.append(alert)
+                    stats["alert_counts"][alert.status] += 1
+                    logger.info(
+                        f"  🚨 Alert {alert.id[:8]}... | {alert.alertType} | "
+                        f"Severity={alert.severity} | status={alert.status}"
+                    )
+                else:
+                    logger.info(
+                        f"  📝 LOG only | {item.get('camera_id')} | Risk={risk}"
+                    )
+
+            stats["last_cursor"] = next_cursor
+            stats["last_poll_at"] = datetime.now(timezone.utc).isoformat()
+
+            # Giữ tối đa 500 alerts trong memory
+            if len(alerts_store) > 500:
+                alerts_store[:] = alerts_store[-500:]
+            return len(items)
+
     except Exception as e:
         logger.error(f"❌ Poll error: {e}")
         return 0
 
+
 async def poll_worker():
-    """Background worker: poll AI Vision liên tục"""
+    """Background worker: poll AI Vision liên tục."""
     logger.info(f"🔄 Core Business polling started: every {POLL_INTERVAL}s")
     stats["poll_active"] = True
-    
     while stats["poll_active"]:
         try:
             await poll_ai_vision()
@@ -227,106 +351,194 @@ async def poll_worker():
             logger.error(f"Poll worker error: {e}")
             await asyncio.sleep(5)
 
+
 # ═══════════════════════════════════════════════════════════════════════════
-#  API Endpoints
+#  API Endpoints (theo core-business.openapi.yaml)
 # ═══════════════════════════════════════════════════════════════════════════
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "ok",
-        "service": "core-business-mock",
-        "version": "1.0.0",
-        "poll_active": stats["poll_active"],
-        "ai_vision_url": AI_VISION_URL
-    }
-
-@app.get("/detections")
-async def get_detections(
-    limit: int = Query(20, ge=1, le=100),
-    risk_level: Optional[RiskLevel] = None,
-    camera_id: Optional[str] = None
-):
-    """Lấy danh sách detections đã xử lý"""
-    filtered = detection_records
-    
-    # Filter by risk_level
-    if risk_level:
-        filtered = [r for r in filtered if r.risk_level == risk_level]
-    
-    # Filter by camera_id
-    if camera_id:
-        filtered = [r for r in filtered if r.camera_id == camera_id]
-    
-    return {
-        "total": len(filtered),
-        "limit": limit,
-        "filters": {
-            "risk_level": risk_level.value if risk_level else None,
-            "camera_id": camera_id
-        },
-        "detections": filtered[-limit:] if filtered else []
-    }
-
-@app.get("/detections/{detection_id}")
-async def get_detection_by_id(detection_id: str):
-    """Lấy chi tiết 1 detection"""
-    for record in detection_records:
-        if record.detection_id == detection_id:
-            return record
-    
-    raise HTTPException(status_code=404, detail="Detection not found")
-
-@app.get("/metrics", response_model=BusinessMetrics)
-async def get_metrics():
-    """Lấy business metrics"""
-    return BusinessMetrics(
-        total_detections=stats["total_detections"],
-        by_risk_level=stats["risk_level_counts"],
-        by_action=stats["action_counts"],
-        last_poll_at=stats["last_poll_at"],
-        poll_active=stats["poll_active"]
+@app.get("/health", response_model=HealthStatus)
+async def get_health():
+    """Không yêu cầu auth."""
+    return HealthStatus(
+        status="ok",
+        service="core-business-mock",
+        time=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     )
 
-@app.get("/dashboard")
-async def get_dashboard():
-    """Dashboard với thống kê tổng quan"""
-    return {
-        "service": "Core Business Mock",
-        "status": "operational" if stats["poll_active"] else "paused",
-        "ai_vision_url": AI_VISION_URL,
-        "poll_interval": POLL_INTERVAL,
-        "statistics": {
-            "total_detections": stats["total_detections"],
-            "by_risk_level": stats["risk_level_counts"],
-            "by_action_taken": stats["action_counts"],
-            "last_poll": stats["last_poll_at"]
-        },
-        "recent_detections": detection_records[-10:] if detection_records else []
-    }
 
-@app.post("/poll/start")
-async def start_polling(background_tasks):
-    """Bắt đầu polling (tự động chạy khi service start)"""
-    if stats["poll_active"]:
-        return {"message": "Polling already active"}
-    
-    stats["poll_active"] = True
-    background_tasks.add_task(poll_worker)
-    return {"message": "Polling started", "interval": POLL_INTERVAL}
+# ── /alerts ────────────────────────────────────────────────────────────────
 
-@app.post("/poll/stop")
-async def stop_polling():
-    """Dừng polling"""
-    stats["poll_active"] = False
-    return {"message": "Polling stopped"}
+@app.post("/alerts", response_model=Alert, status_code=201)
+async def create_alert(req: CreateAlertRequest, authorization: Optional[str] = Header(None)):
+    """Tạo cảnh báo mới."""
+    require_bearer(authorization)
+    alert = Alert(
+        id=str(uuid.uuid4()),
+        sourceService=req.sourceService,
+        alertType=req.alertType,
+        severity=req.severity,
+        message=req.message,
+        relatedEventId=req.relatedEventId,
+        status="OPEN",
+        createdAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        resolvedAt=None,
+    )
+    alerts_store.append(alert)
+    stats["alert_counts"][alert.status] = stats["alert_counts"].get(alert.status, 0) + 1
+    logger.info(f"➕ Alert created: {alert.id[:8]}... | {alert.alertType}")
+    return alert
 
-@app.post("/poll/now")
-async def poll_now():
-    """Trigger 1 lần poll ngay lập tức"""
-    count = await poll_ai_vision()
-    return {"message": f"Polled {count} new detections"}
+
+@app.get("/alerts", response_model=AlertPage)
+async def list_alerts(
+    cursor: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    authorization: Optional[str] = Header(None),
+):
+    """Danh sách cảnh báo có cursor pagination."""
+    require_bearer(authorization)
+    # Decode cursor (đơn giản: số thứ tự)
+    start = 0
+    if cursor:
+        try:
+            start = int(cursor)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid cursor")
+
+    end = start + limit
+    page_items = alerts_store[start:end]
+    next_cursor = str(end) if end < len(alerts_store) else None
+    return AlertPage(
+        items=page_items,
+        nextCursor=next_cursor,
+        hasMore=end < len(alerts_store),
+    )
+
+
+@app.get("/alerts/recent", response_model=RecentAlertsResponse)
+async def get_recent_alerts(
+    limit: int = Query(20, ge=1, le=100),
+    authorization: Optional[str] = Header(None),
+):
+    """Lấy các cảnh báo gần đây (mới nhất trước)."""
+    require_bearer(authorization)
+    # Lấy N alert mới nhất
+    recent = alerts_store[-limit:] if alerts_store else []
+    recent.reverse()
+    return RecentAlertsResponse(items=recent)
+
+
+@app.get("/alerts/{alert_id}", response_model=Alert)
+async def get_alert_by_id(
+    alert_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    require_bearer(authorization)
+    for a in alerts_store:
+        if a.id == alert_id:
+            return a
+    raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
+
+
+# ── /events ────────────────────────────────────────────────────────────────
+
+@app.post("/events", response_model=EventAccepted, status_code=201)
+async def create_event(
+    payload: Dict[str, Any],
+    authorization: Optional[str] = Header(None),
+):
+    """Nhận event (Sensor hoặc Access)."""
+    require_bearer(authorization)
+    event_type = payload.get("eventType")
+    if event_type not in ("sensor.reading.created", "sensor.threshold.exceeded", "ACCESS_CHECK"):
+        raise HTTPException(status_code=422, detail=f"Unsupported eventType: {event_type}")
+
+    event_id = payload.get("eventId") or str(uuid.uuid4())
+    events_log.append(payload)
+    logger.info(f"📥 Event received: {event_type} | {event_id[:8]}...")
+    return EventAccepted(
+        eventId=event_id,
+        acceptedAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    )
+
+
+# ── /access/check ─────────────────────────────────────────────────────────
+
+@app.post("/access/check", response_model=AccessDecision)
+async def check_access_policy(
+    req: AccessCheckRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Check policy ra/vào - phản hồi trong ≤200ms (mock)."""
+    require_bearer(authorization)
+
+    # Idempotency check
+    if req.idempotencyKey in idempotency_keys:
+        raise HTTPException(status_code=409, detail="Duplicate idempotencyKey")
+    idempotency_keys.add(req.idempotencyKey)
+
+    # Mock policy: cho phép hết, trừ cardId chứa "DENY"
+    if "DENY" in req.cardId.upper():
+        decision = AccessDecision(
+            decisionId=str(uuid.uuid4()),
+            cardId=req.cardId,
+            gateId=req.gateId,
+            result="DENY",
+            reasonCode="BLACKLISTED",
+            policyId="POL-002",
+            evaluatedAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            expiresAt=None,
+        )
+    else:
+        decision = AccessDecision(
+            decisionId=str(uuid.uuid4()),
+            cardId=req.cardId,
+            gateId=req.gateId,
+            result="ALLOW",
+            reasonCode="VALID_CARD",
+            policyId="POL-001",
+            evaluatedAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            expiresAt=None,
+        )
+
+    decisions_store[decision.decisionId] = decision
+    logger.info(f"🚪 Access {req.cardId} @ {req.gateId} -> {decision.result}")
+    return decision
+
+
+# ── /policies/access/{policyId} ────────────────────────────────────────────
+
+@app.get("/policies/access/{policy_id}", response_model=AccessPolicy)
+async def get_access_policy(
+    policy_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    require_bearer(authorization)
+    if not policy_id.startswith("POL-"):
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return AccessPolicy(
+        policyId=policy_id,
+        name="Giờ hành chính cổng chính" if policy_id == "POL-001" else f"Policy {policy_id}",
+        effect="ALLOW",
+        status="ACTIVE",
+        description="Cho phép truy cập cổng chính từ 7:00-22:00",
+        timeWindow={"start": "07:00", "end": "22:00"},
+        allowedGates=["GATE-01", "GATE-02"],
+    )
+
+
+# ── /decisions/{decisionId} ───────────────────────────────────────────────
+
+@app.get("/decisions/{decision_id}", response_model=AccessDecision)
+async def get_decision_by_id(
+    decision_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    require_bearer(authorization)
+    if decision_id not in decisions_store:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    return decisions_store[decision_id]
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Startup
@@ -334,15 +546,13 @@ async def poll_now():
 
 @app.on_event("startup")
 async def startup_event():
-    """Auto-start polling khi service khởi động"""
     logger.info("=" * 80)
     logger.info("Core Business Mock Service starting...")
     logger.info(f"AI Vision URL: {AI_VISION_URL}")
     logger.info(f"Poll Interval: {POLL_INTERVAL}s")
     logger.info("=" * 80)
-    
-    # Auto-start polling
     asyncio.create_task(poll_worker())
+
 
 if __name__ == "__main__":
     uvicorn.run(
@@ -350,5 +560,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=6000,
         reload=False,
-        log_level="info"
+        log_level="info",
     )
