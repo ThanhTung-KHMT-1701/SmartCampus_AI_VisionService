@@ -14,6 +14,7 @@ Endpoints chính:
   - POST /access/check                  Check policy ra/vào realtime
   - GET  /policies/access/{policyId}    Lấy policy
   - GET  /decisions/{decisionId}        Audit decision
+  - POST /vision/detection-result       Nhận kết quả từ AI Vision webhook
 
 Flow:
   1. Background poll AI Vision mỗi POLL_INTERVAL giây
@@ -68,6 +69,8 @@ AlertType = Literal[
     "SENSOR_THRESHOLD_EXCEEDED",
     "UNKNOWN_PERSON",
     "SYSTEM_ERROR",
+    "AI_VISION_DETECTION",
+    "SUSPICIOUS_OBJECT",
 ]
 AlertStatus = Literal["OPEN", "ACKNOWLEDGED", "RESOLVED"]
 
@@ -180,6 +183,46 @@ class AccessPolicy(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     timeWindow: Optional[Dict[str, str]] = None
     allowedGates: Optional[List[str]] = None
+
+
+class BoundingBox(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    x: int = Field(..., ge=0)
+    y: int = Field(..., ge=0)
+    width: int = Field(..., ge=1)
+    height: int = Field(..., ge=1)
+
+
+class Detection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    label: str
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    bbox: BoundingBox
+    class_id: int
+
+
+class AIVisionDetectionResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    detection_id: str
+    camera_id: str = Field(..., pattern=r"^[a-z0-9-]+$")
+    detections: List[Detection]
+    risk_level: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    model_version: str
+    processing_time_ms: Optional[int] = None
+    timestamp: str
+    trace_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class AIVisionResultAck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ack_id: str
+    detection_id: str
+    status: Literal["ACCEPTED", "REJECTED", "PROCESSING"]
+    action_taken: str
+    alert_id: Optional[str] = None
+    message: str
+    processed_at: str
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -538,6 +581,94 @@ async def get_decision_by_id(
     if decision_id not in decisions_store:
         raise HTTPException(status_code=404, detail="Decision not found")
     return decisions_store[decision_id]
+
+
+# ── /vision/detection-result ──────────────────────────────────────────────
+
+@app.post("/vision/detection-result", response_model=AIVisionResultAck)
+async def receive_ai_vision_detection(
+    payload: AIVisionDetectionResult,
+    authorization: Optional[str] = Header(None),
+):
+    """
+    Webhook endpoint: AI Vision Service gửi kết quả detection.
+    Core Business nhận, áp dụng rule, tạo alert nếu cần.
+    """
+    require_bearer(authorization)
+    
+    detection_id = payload.detection_id
+    camera_id = payload.camera_id
+    risk_level = payload.risk_level
+    n_detections = len(payload.detections)
+    
+    logger.info(
+        f"📥 AI Vision Detection | ID={detection_id[:8]}... | "
+        f"Camera={camera_id} | Risk={risk_level} | Objects={n_detections}"
+    )
+    
+    # Business rule: Tạo alert khi risk >= MEDIUM
+    action_taken = "NONE"
+    alert_id = None
+    message = f"Kết quả đã được ghi nhận, không phát hiện vi phạm"
+    
+    if risk_level in ["MEDIUM", "HIGH", "CRITICAL"]:
+        # Tạo alert
+        alert_type = risk_to_alert_type(risk_level)
+        
+        # Xác định alert type cụ thể dựa vào metadata
+        metadata = payload.metadata or {}
+        if "unauthorized_access" in metadata.get("alert_reason", ""):
+            alert_type = "UNAUTHORIZED_ACCESS"
+        elif "unknown_person" in metadata.get("alert_reason", ""):
+            alert_type = "UNKNOWN_PERSON"
+        elif n_detections > 0 and payload.detections[0].label not in ["person"]:
+            alert_type = "SUSPICIOUS_OBJECT"
+        else:
+            alert_type = "AI_VISION_DETECTION"
+        
+        alert_message = (
+            f"Phát hiện {n_detections} đối tượng tại camera {camera_id} "
+            f"với mức rủi ro {risk_level}"
+        )
+        
+        alert = Alert(
+            id=str(uuid.uuid4()),
+            sourceService="ai-vision-gateway",
+            alertType=alert_type,
+            severity=risk_level,
+            message=alert_message,
+            relatedEventId=detection_id,
+            status="OPEN",
+            createdAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            resolvedAt=None,
+        )
+        
+        alerts_store.append(alert)
+        stats["alert_counts"][alert.status] = stats["alert_counts"].get(alert.status, 0) + 1
+        
+        action_taken = "ALERT_CREATED"
+        alert_id = alert.id
+        message = f"Phát hiện truy cập trái phép, đã tạo alert"
+        
+        logger.info(
+            f"  🚨 Alert {alert.id[:8]}... | {alert.alertType} | "
+            f"Severity={alert.severity}"
+        )
+    else:
+        logger.info(f"  📝 LOG only | Risk={risk_level} (no alert)")
+    
+    # Trả acknowledgment
+    ack = AIVisionResultAck(
+        ack_id=str(uuid.uuid4()),
+        detection_id=detection_id,
+        status="ACCEPTED",
+        action_taken=action_taken,
+        alert_id=alert_id,
+        message=message,
+        processed_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    )
+    
+    return ack
 
 
 # ═══════════════════════════════════════════════════════════════════════════

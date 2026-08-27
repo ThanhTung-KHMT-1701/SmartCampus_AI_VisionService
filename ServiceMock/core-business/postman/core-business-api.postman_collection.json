@@ -1,0 +1,437 @@
+{
+  "info": {
+    "name": "Core Business Service API",
+    "description": "Test collection for Core Business Mock Service - Smart Campus",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "1234567"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{BEARER_TOKEN}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:6000",
+      "type": "string"
+    },
+    {
+      "key": "BEARER_TOKEN",
+      "value": "local-dev-token-vision",
+      "type": "string"
+    },
+    {
+      "key": "alert_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "detection_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Service is OK\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('ok');",
+              "    pm.expect(jsonData.service).to.exist;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/health",
+          "host": ["{{BASE_URL}}"],
+          "path": ["health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Alert",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Alert created successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.id).to.exist;",
+              "    pm.expect(jsonData.alertType).to.eql('UNAUTHORIZED_ACCESS');",
+              "    pm.expect(jsonData.severity).to.eql('HIGH');",
+              "    pm.expect(jsonData.status).to.eql('OPEN');",
+              "    pm.collectionVariables.set('alert_id', jsonData.id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceService\": \"core-business\",\n  \"alertType\": \"UNAUTHORIZED_ACCESS\",\n  \"severity\": \"HIGH\",\n  \"message\": \"Phát hiện truy cập trái phép tại cổng chính\",\n  \"relatedEventId\": \"0196fb3d-4ad7-7d1e-9f49-5d5148d2babc\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/alerts",
+          "host": ["{{BASE_URL}}"],
+          "path": ["alerts"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Alert By ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Alert details returned\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.id).to.exist;",
+              "    pm.expect(jsonData.alertType).to.exist;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/alerts/{{alert_id}}",
+          "host": ["{{BASE_URL}}"],
+          "path": ["alerts", "{{alert_id}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List Alerts",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Returns paginated alerts\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.items).to.be.an('array');",
+              "    pm.expect(jsonData.hasMore).to.be.a('boolean');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/alerts?limit=20",
+          "host": ["{{BASE_URL}}"],
+          "path": ["alerts"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Recent Alerts",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Returns recent alerts\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.items).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/alerts/recent?limit=10",
+          "host": ["{{BASE_URL}}"],
+          "path": ["alerts", "recent"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "AI Vision Detection Result - High Risk",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Detection accepted and alert created\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.ack_id).to.exist;",
+              "    pm.expect(jsonData.status).to.eql('ACCEPTED');",
+              "    pm.expect(jsonData.action_taken).to.eql('ALERT_CREATED');",
+              "    pm.expect(jsonData.alert_id).to.exist;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.collectionVariables.set('detection_id', pm.variables.replaceIn('{{$guid}}'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"detection_id\": \"{{detection_id}}\",\n  \"camera_id\": \"cam-gate-01\",\n  \"detections\": [\n    {\n      \"label\": \"person\",\n      \"confidence\": 0.95,\n      \"bbox\": {\n        \"x\": 100,\n        \"y\": 50,\n        \"width\": 80,\n        \"height\": 150\n      },\n      \"class_id\": 0\n    }\n  ],\n  \"risk_level\": \"HIGH\",\n  \"model_version\": \"yolov8n-v1.0\",\n  \"processing_time_ms\": 45,\n  \"timestamp\": \"{{$isoTimestamp}}\",\n  \"metadata\": {\n    \"location\": \"restricted_area\",\n    \"alert_reason\": \"unauthorized_access_time\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/vision/detection-result",
+          "host": ["{{BASE_URL}}"],
+          "path": ["vision", "detection-result"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "AI Vision Detection Result - Low Risk",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Detection accepted but no alert created\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.ack_id).to.exist;",
+              "    pm.expect(jsonData.status).to.eql('ACCEPTED');",
+              "    pm.expect(jsonData.action_taken).to.eql('NONE');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"detection_id\": \"{{$guid}}\",\n  \"camera_id\": \"cam-corridor-01\",\n  \"detections\": [\n    {\n      \"label\": \"person\",\n      \"confidence\": 0.88,\n      \"bbox\": {\n        \"x\": 200,\n        \"y\": 100,\n        \"width\": 70,\n        \"height\": 140\n      },\n      \"class_id\": 0\n    }\n  ],\n  \"risk_level\": \"LOW\",\n  \"model_version\": \"yolov8n-v1.0\",\n  \"processing_time_ms\": 42,\n  \"timestamp\": \"{{$isoTimestamp}}\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/vision/detection-result",
+          "host": ["{{BASE_URL}}"],
+          "path": ["vision", "detection-result"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Check Access Policy - ALLOW",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Access allowed\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.result).to.eql('ALLOW');",
+              "    pm.expect(jsonData.reasonCode).to.eql('VALID_CARD');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cardId\": \"RFID-2026-001\",\n  \"gateId\": \"GATE-01\",\n  \"direction\": \"IN\",\n  \"idempotencyKey\": \"{{$guid}}\",\n  \"timestamp\": \"{{$isoTimestamp}}\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/access/check",
+          "host": ["{{BASE_URL}}"],
+          "path": ["access", "check"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Access Policy",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Policy details returned\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.policyId).to.exist;",
+              "    pm.expect(jsonData.effect).to.exist;",
+              "    pm.expect(jsonData.status).to.eql('ACTIVE');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/policies/access/POL-001",
+          "host": ["{{BASE_URL}}"],
+          "path": ["policies", "access", "POL-001"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Event - Sensor",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Event accepted\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.eventId).to.exist;",
+              "    pm.expect(jsonData.acceptedAt).to.exist;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"eventType\": \"sensor.reading.created\",\n  \"eventId\": \"{{$guid}}\",\n  \"occurredAt\": \"{{$isoTimestamp}}\",\n  \"correlationId\": \"{{$guid}}\",\n  \"source\": \"iot-ingestion\",\n  \"deviceId\": \"SENSOR-001\",\n  \"metric\": \"temperature\",\n  \"value\": 38.5,\n  \"unit\": \"celsius\",\n  \"locationId\": \"room-a101\"\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/events",
+          "host": ["{{BASE_URL}}"],
+          "path": ["events"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

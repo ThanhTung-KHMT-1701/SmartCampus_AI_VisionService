@@ -6,6 +6,15 @@ info:
     Hợp đồng API của Core Business Service trong Smart Campus Operations Platform.
     Service trung tâm xử lý luật nghiệp vụ: nhận sự kiện từ IoT, Access Gate, AI Vision,
     áp dụng rule/policy, tạo alert và gửi thông báo.
+    
+    ## Tích hợp với AI Vision Service
+    Core Business Service nhận kết quả phát hiện từ AI Vision thông qua endpoint webhook:
+    - `/vision/detection-result`: Nhận kết quả object detection (phát hiện người, vật thể)
+    
+    Dựa trên kết quả từ AI Vision, Core Business áp dụng các rule nghiệp vụ:
+    - Phát hiện người lạ trong khu vực cấm → Tạo alert UNKNOWN_PERSON
+    - Phát hiện đối tượng khả nghi → Tạo alert SUSPICIOUS_OBJECT
+    - Phát hiện vật thể bất thường → Đánh giá risk level và tạo alert tương ứng
   contact:
     name: Nhóm Core Business
     email: core-business@campus.local
@@ -23,6 +32,8 @@ tags:
     description: Quản lý sự kiện nghiệp vụ
   - name: access-policy
     description: Kiểm tra policy ra/vào cho Access Gate
+  - name: ai-vision-webhook
+    description: Nhận kết quả phát hiện từ AI Vision Service
 security:
   - bearerAuth: []
 paths:
@@ -410,6 +421,105 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /vision/detection-result:
+    post:
+      operationId: receiveAIVisionDetection
+      summary: Nhận kết quả phát hiện từ AI Vision Service
+      description: |
+        Endpoint webhook để AI Vision Service gửi kết quả phát hiện đối tượng.
+        Core Business nhận kết quả này để áp dụng rule/policy và tạo alert nếu cần.
+        
+        **Luồng xử lý:**
+        1. Camera Stream gửi frame sang AI Vision
+        2. AI Vision xử lý và trả kết quả cho Camera Stream
+        3. Camera Stream hoặc AI Vision gửi kết quả sang Core Business qua endpoint này
+        4. Core Business áp dụng rule: phát hiện người lạ, vật thể bất thường, v.v.
+        5. Nếu vi phạm rule, tạo alert và gửi sang Notification Service
+        
+        **SLA:** Response trong ≤500ms để không làm chậm luồng xử lý.
+      tags: [ai-vision-webhook]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIVisionDetectionResult'
+            examples:
+              personDetected:
+                summary: Phát hiện người
+                value:
+                  detection_id: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                  camera_id: cam-gate-01
+                  detections:
+                    - label: person
+                      confidence: 0.95
+                      bbox:
+                        x: 100
+                        y: 50
+                        width: 80
+                        height: 150
+                      class_id: 0
+                  risk_level: LOW
+                  model_version: yolov8n-v1.0
+                  processing_time_ms: 45
+                  timestamp: '2026-08-11T10:30:01Z'
+              suspiciousDetection:
+                summary: Phát hiện đối tượng khả nghi
+                value:
+                  detection_id: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babd
+                  camera_id: cam-restricted-area-01
+                  detections:
+                    - label: person
+                      confidence: 0.88
+                      bbox:
+                        x: 200
+                        y: 100
+                        width: 70
+                        height: 140
+                      class_id: 0
+                  risk_level: HIGH
+                  model_version: yolov8n-v1.0
+                  processing_time_ms: 52
+                  timestamp: '2026-08-11T22:30:00Z'
+                  metadata:
+                    location: restricted_area
+                    alert_reason: unauthorized_access_time
+      responses:
+        '200':
+          description: Đã nhận và xử lý kết quả detection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIVisionResultAck'
+              examples:
+                accepted:
+                  value:
+                    ack_id: 0196fb3d-4ad7-7d1e-9f49-ccc148d2b003
+                    detection_id: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                    status: ACCEPTED
+                    action_taken: NONE
+                    message: Kết quả đã được ghi nhận, không phát hiện vi phạm
+                    processed_at: '2026-08-11T10:30:01Z'
+                alertCreated:
+                  value:
+                    ack_id: 0196fb3d-4ad7-7d1e-9f49-ccc148d2b004
+                    detection_id: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babd
+                    status: ACCEPTED
+                    action_taken: ALERT_CREATED
+                    alert_id: 0196fb3d-4ad7-7d1e-9f49-ddd148d2b005
+                    message: Phát hiện truy cập trái phép, đã tạo alert
+                    processed_at: '2026-08-11T22:30:01Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 webhooks:
   alertCreated:
     post:
@@ -500,7 +610,7 @@ components:
           example: core-business
         alertType:
           type: string
-          enum: [UNAUTHORIZED_ACCESS, SENSOR_THRESHOLD_EXCEEDED, UNKNOWN_PERSON, SYSTEM_ERROR]
+          enum: [UNAUTHORIZED_ACCESS, SENSOR_THRESHOLD_EXCEEDED, UNKNOWN_PERSON, SYSTEM_ERROR, AI_VISION_DETECTION, SUSPICIOUS_OBJECT]
           description: Loại cảnh báo.
           example: UNAUTHORIZED_ACCESS
         severity:
@@ -536,7 +646,7 @@ components:
           example: core-business
         alertType:
           type: string
-          enum: [UNAUTHORIZED_ACCESS, SENSOR_THRESHOLD_EXCEEDED, UNKNOWN_PERSON, SYSTEM_ERROR]
+          enum: [UNAUTHORIZED_ACCESS, SENSOR_THRESHOLD_EXCEEDED, UNKNOWN_PERSON, SYSTEM_ERROR, AI_VISION_DETECTION, SUSPICIOUS_OBJECT]
           description: Loại cảnh báo.
           example: UNAUTHORIZED_ACCESS
         severity:
@@ -598,11 +708,13 @@ components:
       oneOf:
         - $ref: '#/components/schemas/SensorEvent'
         - $ref: '#/components/schemas/AccessEvent'
+        - $ref: '#/components/schemas/AIVisionEvent'
       discriminator:
         propertyName: eventType
         mapping:
           SENSOR_READING: '#/components/schemas/SensorEvent'
           ACCESS_CHECK: '#/components/schemas/AccessEvent'
+          AI_VISION_DETECTION: '#/components/schemas/AIVisionEvent'
 
     SensorEvent:
       type: object
@@ -694,6 +806,62 @@ components:
           type: string
           format: date-time
           description: Thời điểm kiểm tra.
+
+    AIVisionEvent:
+      type: object
+      additionalProperties: false
+      required: [eventType, eventId, detection_id, camera_id, detections, risk_level, timestamp]
+      description: Event từ AI Vision Service sau khi phát hiện đối tượng
+      properties:
+        eventType:
+          type: string
+          const: AI_VISION_DETECTION
+          description: Loại event.
+          example: AI_VISION_DETECTION
+        eventId:
+          type: string
+          format: uuid
+          description: UUID của event trong hệ thống Core Business.
+          example: 0196fb3d-4ad7-7d1e-9f49-eee148d2b009
+        detection_id:
+          type: string
+          format: uuid
+          description: UUID của detection từ AI Vision.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+        camera_id:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          description: ID của camera nguồn.
+          example: cam-gate-01
+        detections:
+          type: array
+          description: Danh sách các đối tượng phát hiện được
+          items:
+            $ref: '#/components/schemas/AIVisionDetection'
+        risk_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          description: Mức độ rủi ro của detection
+          example: HIGH
+        model_version:
+          type: string
+          description: Phiên bản model AI đã sử dụng
+          example: yolov8n-v1.0
+        timestamp:
+          type: string
+          format: date-time
+          description: Thời điểm xử lý xong từ AI Vision.
+          example: '2026-08-11T10:30:01Z'
+        correlationId:
+          type: [string, 'null']
+          format: uuid
+          description: UUID để trace xuyên suốt hệ thống.
+          example: f1e2d3c4-b5a6-7890-abcd-ef1234567890
+        source:
+          type: string
+          enum: [ai-vision, camera-stream]
+          description: Service phát event.
+          example: ai-vision
 
     EventAccepted:
       type: object
@@ -828,6 +996,149 @@ components:
             type: string
           description: Danh sách cổng áp dụng policy.
           example: [GATE-01, GATE-02]
+
+    AIVisionDetectionResult:
+      type: object
+      additionalProperties: false
+      required: [detection_id, camera_id, detections, risk_level, model_version, timestamp]
+      description: Kết quả phát hiện đối tượng từ AI Vision Service
+      properties:
+        detection_id:
+          type: string
+          format: uuid
+          description: UUID của detection request từ AI Vision
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+        camera_id:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          minLength: 1
+          maxLength: 80
+          description: ID của camera nguồn
+          example: cam-gate-01
+        detections:
+          type: array
+          description: Danh sách các đối tượng phát hiện được
+          items:
+            $ref: '#/components/schemas/AIVisionDetection'
+        risk_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          description: Mức độ rủi ro của detection
+          example: LOW
+        model_version:
+          type: string
+          description: Phiên bản model AI đã sử dụng
+          example: yolov8n-v1.0
+        processing_time_ms:
+          type: integer
+          minimum: 0
+          description: Thời gian xử lý tính bằng milliseconds
+          example: 45
+        timestamp:
+          type: string
+          format: date-time
+          description: Thời điểm xử lý xong từ AI Vision
+          example: '2026-08-11T10:30:01Z'
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Metadata bổ sung từ AI Vision hoặc Camera Stream
+          example:
+            location: main_entrance
+            alert_reason: suspicious_activity
+
+    AIVisionDetection:
+      type: object
+      additionalProperties: false
+      required: [label, confidence, bbox]
+      description: Một đối tượng được phát hiện trong ảnh
+      properties:
+        label:
+          type: string
+          description: Tên nhãn đối tượng (person, car, backpack, v.v.)
+          example: person
+        confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Độ tin cậy của detection (0.0 - 1.0)
+          example: 0.95
+        bbox:
+          $ref: '#/components/schemas/BoundingBox'
+        class_id:
+          type: integer
+          description: ID của class trong model YOLO
+          example: 0
+
+    BoundingBox:
+      type: object
+      additionalProperties: false
+      required: [x, y, width, height]
+      description: Tọa độ bounding box của đối tượng phát hiện
+      properties:
+        x:
+          type: integer
+          minimum: 0
+          description: Tọa độ x của góc trên trái
+          example: 100
+        y:
+          type: integer
+          minimum: 0
+          description: Tọa độ y của góc trên trái
+          example: 50
+        width:
+          type: integer
+          minimum: 1
+          description: Chiều rộng của bounding box
+          example: 80
+        height:
+          type: integer
+          minimum: 1
+          description: Chiều cao của bounding box
+          example: 150
+
+    AIVisionResultAck:
+      type: object
+      additionalProperties: false
+      required: [ack_id, detection_id, status, action_taken, message, processed_at]
+      description: Xác nhận đã nhận và xử lý kết quả từ AI Vision
+      properties:
+        ack_id:
+          type: string
+          format: uuid
+          description: UUID của acknowledgment
+          example: 0196fb3d-4ad7-7d1e-9f49-ccc148d2b003
+        detection_id:
+          type: string
+          format: uuid
+          description: UUID của detection/match từ AI Vision
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+        status:
+          type: string
+          enum: [ACCEPTED, REJECTED, PROCESSING]
+          description: Trạng thái xử lý
+          example: ACCEPTED
+        action_taken:
+          type: string
+          enum: [NONE, ALERT_CREATED, ACCESS_GRANTED, ACCESS_DENIED, NOTIFICATION_SENT]
+          description: Hành động đã thực hiện sau khi nhận kết quả
+          example: NONE
+        alert_id:
+          type: [string, 'null']
+          format: uuid
+          description: UUID của alert đã tạo (nếu có)
+          example: null
+        message:
+          type: string
+          minLength: 5
+          maxLength: 500
+          description: Thông điệp mô tả hành động đã thực hiện
+          example: Kết quả đã được ghi nhận, không phát hiện vi phạm
+        processed_at:
+          type: string
+          format: date-time
+          description: Thời điểm Core Business xử lý xong
+          example: '2026-08-11T10:30:01Z'
 
     Problem:
       type: object
